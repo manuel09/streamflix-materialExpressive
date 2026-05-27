@@ -33,16 +33,57 @@ jobs:
       - name: Make Gradle executable
         run: chmod +x ./gradlew
 
-      - name: Build and Sign
+      - name: Build Unified
         run: |
-          ./gradlew clean
-          ./gradlew assembleRelease
+          ./gradlew clean assembleRelease
+          mkdir -p signed_apks
+          cp app/build/outputs/apk/release/*.apk signed_apks/app-unified.apk
         
-      - name: Sign APK
-        id: sign_apk
+      - name: Sign Unified
+        id: sign_unified
         uses: r0adkll/sign-android-release@v1
         with:
-          releaseDirectory: app/build/outputs/apk/release
+          releaseDirectory: signed_apks
+          signingKeyBase64: ${{ secrets.KEYSTORE }}
+          alias: ${{ secrets.SIGNING_KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        env:
+          BUILD_TOOLS_VERSION: "34.0.0"
+
+      - name: Build Mobile
+        run: |
+          sed -i '/APP_LAYOUT/d' local.properties
+          echo APP_LAYOUT=mobile >> local.properties
+          ./gradlew clean assembleRelease
+          mkdir -p signed_apks_mobile
+          cp app/build/outputs/apk/release/*.apk signed_apks_mobile/app-mobile.apk
+          
+      - name: Sign Mobile
+        id: sign_mobile
+        uses: r0adkll/sign-android-release@v1
+        with:
+          releaseDirectory: signed_apks_mobile
+          signingKeyBase64: ${{ secrets.KEYSTORE }}
+          alias: ${{ secrets.SIGNING_KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        env:
+          BUILD_TOOLS_VERSION: "34.0.0"
+
+      - name: Build TV
+        run: |
+          sed -i '/APP_LAYOUT/d' local.properties
+          echo APP_LAYOUT=tv >> local.properties
+          ./gradlew clean assembleRelease
+          mkdir -p signed_apks_tv
+          cp app/build/outputs/apk/release/*.apk signed_apks_tv/app-tv.apk
+          
+      - name: Sign TV
+        id: sign_tv
+        uses: r0adkll/sign-android-release@v1
+        with:
+          releaseDirectory: signed_apks_tv
           signingKeyBase64: ${{ secrets.KEYSTORE }}
           alias: ${{ secrets.SIGNING_KEY_ALIAS }}
           keyStorePassword: ${{ secrets.SIGNING_STORE_PASSWORD }}
@@ -51,63 +92,11 @@ jobs:
           BUILD_TOOLS_VERSION: "34.0.0"
 
       - name: Create Release
-        id: create_release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            ${{ steps.sign_apk.outputs.signedReleaseFile }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Ripetizione per Mobile e TV come da tuo workflow
-      - name: Build Mobile
-        run: |
-          sed -i '/APP_LAYOUT/d' local.properties
-          echo APP_LAYOUT=mobile >> local.properties
-          ./gradlew clean
-          ./gradlew assembleRelease
-          
-      - name: Sign Mobile
-        id: sign_mobile
-        uses: r0adkll/sign-android-release@v1
-        with:
-          releaseDirectory: app/build/outputs/apk/release
-          signingKeyBase64: ${{ secrets.KEYSTORE }}
-          alias: ${{ secrets.SIGNING_KEY_ALIAS }}
-          keyStorePassword: ${{ secrets.SIGNING_STORE_PASSWORD }}
-          keyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
-        env:
-          BUILD_TOOLS_VERSION: "34.0.0"
-
-      - name: Upload Mobile
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ${{ steps.sign_mobile.outputs.signedReleaseFile }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build TV
-        run: |
-          sed -i '/APP_LAYOUT/d' local.properties
-          echo APP_LAYOUT=tv >> local.properties
-          ./gradlew clean
-          ./gradlew assembleRelease
-          
-      - name: Sign TV
-        id: sign_tv
-        uses: r0adkll/sign-android-release@v1
-        with:
-          releaseDirectory: app/build/outputs/apk/release
-          signingKeyBase64: ${{ secrets.KEYSTORE }}
-          alias: ${{ secrets.SIGNING_KEY_ALIAS }}
-          keyStorePassword: ${{ secrets.SIGNING_STORE_PASSWORD }}
-          keyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
-        env:
-          BUILD_TOOLS_VERSION: "34.0.0"
-
-      - name: Upload TV
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ${{ steps.sign_tv.outputs.signedReleaseFile }}
+            ${{ steps.sign_unified.outputs.signedReleaseFile }}
+            ${{ steps.sign_mobile.outputs.signedReleaseFile }}
+            ${{ steps.sign_tv.outputs.signedReleaseFile }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
