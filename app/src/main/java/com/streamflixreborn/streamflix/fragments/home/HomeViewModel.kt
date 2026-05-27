@@ -70,7 +70,7 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
                 if (cache != null && cache.continueWatchingMovies.isNotEmpty()) {
                     emit(cache.continueWatchingMovies.map { it.toMovie() })
                 } else {
-                    emitAll(database.movieDao().getWatchingMovies())
+                    emitAll(database.movieDao().getWatchingMovies(UserPreferences.activeProfileId))
                 }
             }.flowOn(Dispatchers.IO),
             _userDataCache.transformLatest { cache: UserDataCache.UserData? ->
@@ -87,7 +87,7 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
                     emitAll(database.episodeDao().getNextEpisodesToWatch())
                 }
             }.flowOn(Dispatchers.IO),
-            database.tvShowDao().getAll().flowOn(Dispatchers.IO),
+            database.tvShowDao().getAll(UserPreferences.activeProfileId).flowOn(Dispatchers.IO),
         ) { watchingMovies: List<Movie>, watchingEpisodes: List<Episode>, watchNextEpisodes: List<Episode>, tvShows: List<TvShow> ->
 
             val allEpisodes = (watchingEpisodes + watchNextEpisodes)
@@ -144,14 +144,14 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
             if (cache != null && cache.favoritesMovies.isNotEmpty()) {
                 emit(cache.favoritesMovies.map { it.toMovie() })
             } else {
-                emitAll(database.movieDao().getFavorites())
+                emitAll(database.movieDao().getFavorites(UserPreferences.activeProfileId))
             }
         }.flowOn(Dispatchers.IO),
         _userDataCache.transformLatest { cache: UserDataCache.UserData? ->
             if (cache != null && cache.favoritesTvShows.isNotEmpty()) {
                 emit(cache.favoritesTvShows.map { it.toTvShow() })
             } else {
-                emitAll(database.tvShowDao().getFavorites())
+                emitAll(database.tvShowDao().getFavorites(UserPreferences.activeProfileId))
             }
         }.flowOn(Dispatchers.IO),
 
@@ -165,7 +165,7 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
                     if (movies.isEmpty()) {
                         emit(emptyList<Movie>())
                     } else {
-                        emitAll(database.movieDao().getByIds(movies.map { it.id }))
+                        emitAll(database.movieDao().getByIds(movies.map { it.id }, UserPreferences.activeProfileId))
                     }
                 }
                 else -> emit(emptyList<Movie>())
@@ -182,7 +182,7 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
                     if (tvShows.isEmpty()) {
                         emit(emptyList<TvShow>())
                     } else {
-                        emitAll(database.tvShowDao().getByIds(tvShows.map { it.id }))
+                        emitAll(database.tvShowDao().getByIds(tvShows.map { it.id }, UserPreferences.activeProfileId))
                     }
                 }
                 else -> emit(emptyList<TvShow>())
@@ -404,9 +404,9 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
 
         viewModelScope.launch(Dispatchers.IO) {
             val db = AppDatabase.getInstance(appContext)
-            val moviesDeferred = async { db.movieDao().getFavorites().first() }
-            val tvShowsDeferred = async { db.tvShowDao().getFavorites().first() }
-            val watchingMoviesDeferred = async { db.movieDao().getWatchingMovies().first() }
+            val moviesDeferred = async { db.movieDao().getFavorites(UserPreferences.activeProfileId).first() }
+            val tvShowsDeferred = async { db.tvShowDao().getFavorites(UserPreferences.activeProfileId).first() }
+            val watchingMoviesDeferred = async { db.movieDao().getWatchingMovies(UserPreferences.activeProfileId).first() }
             val watchingEpisodesDeferred = async { db.episodeDao().getWatchingEpisodes().first() }
 
             val movies = moviesDeferred.await()
@@ -455,11 +455,11 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
         when (item) {
             is Movie -> {
                 val newState = !item.isFavorite
-                db.movieDao().setFavoriteWithLog(item.id, newState)
+                db.movieDao().setFavoriteWithLog(item.id, newState, UserPreferences.activeProfileId)
             }
             is TvShow -> {
                 val newState = !item.isFavorite
-                db.tvShowDao().setFavoriteWithLog(item.id, newState)
+                db.tvShowDao().setFavoriteWithLog(item.id, newState, UserPreferences.activeProfileId)
             }
         }
         val provider = currentProvider ?: return@launch

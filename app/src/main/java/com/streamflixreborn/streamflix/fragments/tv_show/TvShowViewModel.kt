@@ -58,7 +58,7 @@ class TvShowViewModel(
         _state.transformLatest { state ->
             when (state) {
                 is State.SuccessLoading -> {
-                    val episodes = database.episodeDao().getByTvShowIdAsFlow(id).first()
+                    val episodes = database.episodeDao().getByTvShowIdAsFlow(id, UserPreferences.activeProfileId).first()
                     state.tvShow.seasons.onEach { season ->
                         season.episodes = episodesForSeason(episodes, season)
                     }
@@ -106,8 +106,8 @@ class TvShowViewModel(
             }
             emit(state)
         },
-        database.tvShowDao().getByIdAsFlow(id),
-        database.episodeDao().getByTvShowIdAsFlow(id),
+        database.tvShowDao().getByIdAsFlow(id, UserPreferences.activeProfileId),
+        database.episodeDao().getByTvShowIdAsFlow(id, UserPreferences.activeProfileId),
         _state.transformLatest { state ->
             when (state) {
                 is State.SuccessLoading -> {
@@ -116,7 +116,7 @@ class TvShowViewModel(
                     if (movies.isEmpty()) {
                         emit(emptyList())
                     } else {
-                        emitAll(database.movieDao().getByIds(movies.map { it.id }))
+                        emitAll(database.movieDao().getByIds(movies.map { it.id }, UserPreferences.activeProfileId))
                     }
                 }
                 else -> emit(emptyList<Movie>())
@@ -130,7 +130,7 @@ class TvShowViewModel(
                     if (tvShows.isEmpty()) {
                         emit(emptyList())
                     } else {
-                        emitAll(database.tvShowDao().getByIds(tvShows.map { it.id }))
+                        emitAll(database.tvShowDao().getByIds(tvShows.map { it.id }, UserPreferences.activeProfileId))
                     }
                 }
                 else -> emit(emptyList<TvShow>())
@@ -219,10 +219,10 @@ class TvShowViewModel(
                 tvShow.banner = tvShow.poster
             }
 
-            database.tvShowDao().getById(tvShow.id)?.let { tvShowDb ->
+            database.tvShowDao().getById(tvShow.id, UserPreferences.activeProfileId)?.let { tvShowDb ->
                 tvShow.merge(tvShowDb)
             }
-            database.tvShowDao().insert(tvShow)
+            database.tvShowDao().insert(tvShow, UserPreferences.activeProfileId)
 
             val tvShowCopy = tvShow.copy()
             tvShow.seasons.forEach { season ->
@@ -289,7 +289,7 @@ class TvShowViewModel(
     }
 
     fun toggleFavorite(tvShow: TvShow) = viewModelScope.launch(Dispatchers.IO) {
-        database.tvShowDao().setFavoriteWithLog(tvShow.id, !tvShow.isFavorite)
+        database.tvShowDao().setFavoriteWithLog(tvShow.id, !tvShow.isFavorite, UserPreferences.activeProfileId)
     }
 
     fun markAsWatched(episode: Episode) = viewModelScope.launch(Dispatchers.IO) {

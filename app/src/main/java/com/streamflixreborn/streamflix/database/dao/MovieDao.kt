@@ -16,25 +16,25 @@ import com.streamflixreborn.streamflix.utils.format
 interface MovieDao {
 
     @Query("SELECT * FROM movies WHERE profileId = :profileId")
-    fun getAll(profileId: String = UserPreferences.activeProfileId): List<Movie>
+    fun getAll(profileId: String): List<Movie>
 
     @Query("SELECT * FROM movies WHERE id = :id AND profileId = :profileId")
-    fun getById(id: String, profileId: String = UserPreferences.activeProfileId): Movie?
+    fun getById(id: String, profileId: String): Movie?
 
     @Query("SELECT * FROM movies WHERE id = :id AND profileId = :profileId")
-    fun getByIdAsFlow(id: String, profileId: String = UserPreferences.activeProfileId): Flow<Movie?>
+    fun getByIdAsFlow(id: String, profileId: String): Flow<Movie?>
 
     @Query("SELECT * FROM movies WHERE id IN (:ids) AND profileId = :profileId")
-    fun getByIds(ids: List<String>, profileId: String = UserPreferences.activeProfileId): Flow<List<Movie>>
+    fun getByIds(ids: List<String>, profileId: String): Flow<List<Movie>>
 
     @Query("SELECT * FROM movies WHERE isFavorite = 1 AND profileId = :profileId ORDER BY favoritedAtMillis DESC")
-    fun getFavorites(profileId: String = UserPreferences.activeProfileId): Flow<List<Movie>>
+    fun getFavorites(profileId: String): Flow<List<Movie>>
 
     @Query("SELECT * FROM movies WHERE (isFavorite = 1 OR poster IS NULL OR poster = '' OR banner IS NULL OR banner = '') AND profileId = :profileId")
-    suspend fun getArtworkRepairCandidates(profileId: String = UserPreferences.activeProfileId): List<Movie>
+    suspend fun getArtworkRepairCandidates(profileId: String): List<Movie>
 
     @Query("SELECT * FROM movies WHERE lastEngagementTimeUtcMillis IS NOT NULL AND profileId = :profileId ORDER BY lastEngagementTimeUtcMillis DESC")
-    fun getWatchingMovies(profileId: String = UserPreferences.activeProfileId): Flow<List<Movie>>
+    fun getWatchingMovies(profileId: String): Flow<List<Movie>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insert(movie: Movie)
@@ -46,12 +46,11 @@ interface MovieDao {
     fun update(movie: Movie)
 
     @Query("DELETE FROM movies WHERE profileId = :profileId")
-    fun deleteAll(profileId: String = UserPreferences.activeProfileId)
+    fun deleteAll(profileId: String)
 
     @Transaction
     fun save(movie: Movie) {
         val provider = UserPreferences.currentProvider?.name ?: "Unknown"
-        movie.profileId = UserPreferences.activeProfileId
         val existing = getById(movie.id, movie.profileId)
         if (existing != null) {
             val merged = movie.merge(existing)
@@ -73,7 +72,6 @@ interface MovieDao {
 
     @Transaction
     fun upsertFavorite(movie: Movie, favorite: Boolean) {
-        movie.profileId = UserPreferences.activeProfileId
         val existing = getById(movie.id, movie.profileId)
         if (existing != null) {
             val updated = existing.copy(
@@ -110,8 +108,8 @@ interface MovieDao {
     fun setFavorite(id: String, favorite: Boolean, favoritedAtMillis: Long?, profileId: String)
 
     @Query("UPDATE movies SET lastPlaybackPositionMillis = NULL, durationMillis = NULL, lastEngagementTimeUtcMillis = NULL WHERE id = :id AND profileId = :profileId")
-    fun removeFromContinueWatching(id: String, profileId: String = UserPreferences.activeProfileId)
+    fun removeFromContinueWatching(id: String, profileId: String)
 
     @Query("UPDATE movies SET isWatched = :isWatched WHERE id = :id AND profileId = :profileId")
-    fun setWatched(id: String, isWatched: Boolean, profileId: String = UserPreferences.activeProfileId)
+    fun setWatched(id: String, isWatched: Boolean, profileId: String)
 }

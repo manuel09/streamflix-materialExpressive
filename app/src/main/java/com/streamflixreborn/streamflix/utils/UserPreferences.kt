@@ -474,7 +474,8 @@ object UserPreferences {
         SELECTED_THEME,
         BYPASS_WS_ADVERTISED_HOST,
         UPDATE_CHECK_ENABLED,
-        PROVIDER_LANGUAGE;
+        PROVIDER_LANGUAGE,
+        ACTIVE_PROFILE_ID;
 
         fun getBoolean(): Boolean? = when {
             prefs.contains(name) -> prefs.getBoolean(name, false)
@@ -541,4 +542,8 @@ object UserPreferences {
             apply()
         }
     }
+
+    var activeProfileId: String
+        get() = Key.ACTIVE_PROFILE_ID.getString() ?: "default"
+        set(value) = Key.ACTIVE_PROFILE_ID.setString(value)
 }

@@ -16,22 +16,22 @@ import com.streamflixreborn.streamflix.utils.format
 interface TvShowDao {
 
     @Query("SELECT * FROM tv_shows WHERE profileId = :profileId")
-    fun getAllForBackup(profileId: String = UserPreferences.activeProfileId): List<TvShow>
+    fun getAllForBackup(profileId: String): List<TvShow>
 
     @Query("SELECT * FROM tv_shows WHERE id = :id AND profileId = :profileId")
-    fun getById(id: String, profileId: String = UserPreferences.activeProfileId): TvShow?
+    fun getById(id: String, profileId: String): TvShow?
 
     @Query("SELECT * FROM tv_shows WHERE id = :id AND profileId = :profileId")
-    fun getByIdAsFlow(id: String, profileId: String = UserPreferences.activeProfileId): Flow<TvShow?>
+    fun getByIdAsFlow(id: String, profileId: String): Flow<TvShow?>
 
     @Query("SELECT * FROM tv_shows WHERE id IN (:ids) AND profileId = :profileId")
-    fun getByIds(ids: List<String>, profileId: String = UserPreferences.activeProfileId): Flow<List<TvShow>>
+    fun getByIds(ids: List<String>, profileId: String): Flow<List<TvShow>>
 
     @Query("SELECT * FROM tv_shows WHERE isFavorite = 1 AND profileId = :profileId ORDER BY favoritedAtMillis DESC")
-    fun getFavorites(profileId: String = UserPreferences.activeProfileId): Flow<List<TvShow>>
+    fun getFavorites(profileId: String): Flow<List<TvShow>>
 
     @Query("SELECT * FROM tv_shows WHERE (isFavorite = 1 OR poster IS NULL OR poster = '' OR banner IS NULL OR banner = '') AND profileId = :profileId")
-    suspend fun getArtworkRepairCandidates(profileId: String = UserPreferences.activeProfileId): List<TvShow>
+    suspend fun getArtworkRepairCandidates(profileId: String): List<TvShow>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insert(tvShow: TvShow)
@@ -43,19 +43,19 @@ interface TvShowDao {
     fun insertAll(tvShows: List<TvShow>)
 
     @Query("SELECT * FROM tv_shows WHERE profileId = :profileId")
-    fun getAll(profileId: String = UserPreferences.activeProfileId): Flow<List<TvShow>>
+    fun getAll(profileId: String): Flow<List<TvShow>>
 
     @Query("SELECT * FROM tv_shows WHERE (poster IS NULL or poster = '') AND profileId = :profileId")
-    suspend fun getAllWithNullPoster(profileId: String = UserPreferences.activeProfileId): List<TvShow>
+    suspend fun getAllWithNullPoster(profileId: String): List<TvShow>
 
     @Query("SELECT id FROM tv_shows WHERE profileId = :profileId")
-    suspend fun getAllIds(profileId: String = UserPreferences.activeProfileId): List<String>
+    suspend fun getAllIds(profileId: String): List<String>
 
     @Query("SELECT * FROM tv_shows WHERE LOWER(title) LIKE '%' || :query || '%' AND profileId = :profileId LIMIT :limit OFFSET :offset")
-    suspend fun searchTvShows(query: String, limit: Int, offset: Int, profileId: String = UserPreferences.activeProfileId): List<TvShow>
+    suspend fun searchTvShows(query: String, limit: Int, offset: Int, profileId: String): List<TvShow>
 
     @Query("DELETE FROM tv_shows WHERE profileId = :profileId")
-    fun deleteAll(profileId: String = UserPreferences.activeProfileId)
+    fun deleteAll(profileId: String)
 
     @Transaction
     fun save(tvShow: TvShow) {
@@ -118,5 +118,5 @@ interface TvShowDao {
     fun setFavorite(id: String, favorite: Boolean, favoritedAtMillis: Long?, profileId: String)
 
     @Query("UPDATE tv_shows SET isWatching = :isWatching WHERE id = :id AND profileId = :profileId")
-    fun setWatching(id: String, isWatching: Boolean, profileId: String = UserPreferences.activeProfileId)
+    fun setWatching(id: String, isWatching: Boolean, profileId: String)
 }

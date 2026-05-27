@@ -39,7 +39,7 @@ class MoviesViewModel(database: AppDatabase) : ViewModel() {
                     if (state.movies.isEmpty()) {
                         emit(emptyList())
                     } else {
-                        emitAll(database.movieDao().getByIds(state.movies.map { it.id }))
+                        emitAll(database.movieDao().getByIds(state.movies.map { it.id }, UserPreferences.activeProfileId))
                     }
                 }
                 else -> emit(emptyList<Movie>())

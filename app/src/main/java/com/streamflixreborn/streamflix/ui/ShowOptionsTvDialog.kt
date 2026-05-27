@@ -291,7 +291,7 @@ class ShowOptionsTvDialog(
 
         binding.btnOptionEpisodeOpenTvShow.visibility = View.GONE
 
-        val freshMovie = database.movieDao().getById(movie.id) ?: movie
+        val freshMovie = database.movieDao().getById(movie.id, UserPreferences.activeProfileId) ?: movie
 
         binding.btnOptionShowFavorite.apply {
             setOnClickListener {
@@ -391,7 +391,7 @@ class ShowOptionsTvDialog(
 
         binding.btnOptionEpisodeOpenTvShow.visibility = View.GONE
 
-        val freshTvShow = database.tvShowDao().getById(tvShow.id) ?: tvShow
+        val freshTvShow = database.tvShowDao().getById(tvShow.id, UserPreferences.activeProfileId) ?: tvShow
 
         binding.btnOptionShowFavorite.apply {
             setOnClickListener {

@@ -43,7 +43,7 @@ class GenreViewModel(private val id: String, database: AppDatabase) : ViewModel(
                     if (movies.isEmpty()) {
                         emit(emptyList())
                     } else {
-                        emitAll(database.movieDao().getByIds(movies.map { it.id }))
+                        emitAll(database.movieDao().getByIds(movies.map { it.id }, UserPreferences.activeProfileId))
                     }
                 }
                 else -> emit(emptyList<Movie>())
@@ -57,7 +57,7 @@ class GenreViewModel(private val id: String, database: AppDatabase) : ViewModel(
                     if (tvShows.isEmpty()) {
                         emit(emptyList())
                     } else {
-                        emitAll(database.tvShowDao().getByIds(tvShows.map { it.id }))
+                        emitAll(database.tvShowDao().getByIds(tvShows.map { it.id }, UserPreferences.activeProfileId))
                     }
                 }
                 else -> emit(emptyList<TvShow>())

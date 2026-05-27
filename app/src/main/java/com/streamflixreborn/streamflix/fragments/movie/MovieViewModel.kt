@@ -27,7 +27,7 @@ class MovieViewModel(id: String, private val database: AppDatabase) : ViewModel(
     @OptIn(ExperimentalCoroutinesApi::class)
     val state: StateFlow<State> = combine(
         _state,
-        database.movieDao().getByIdAsFlow(id),
+        database.movieDao().getByIdAsFlow(id, UserPreferences.activeProfileId),
         _state.transformLatest { state ->
             when (state) {
                 is State.SuccessLoading -> {
@@ -36,7 +36,7 @@ class MovieViewModel(id: String, private val database: AppDatabase) : ViewModel(
                     if (movies.isEmpty()) {
                         emit(emptyList<Movie>())
                     } else {
-                        emitAll(database.movieDao().getByIds(movies.map { it.id }))
+                        emitAll(database.movieDao().getByIds(movies.map { it.id }, UserPreferences.activeProfileId))
                     }
                 }
                 else -> emit(emptyList<Movie>())
@@ -50,7 +50,7 @@ class MovieViewModel(id: String, private val database: AppDatabase) : ViewModel(
                     if (tvShows.isEmpty()) {
                         emit(emptyList<TvShow>())
                     } else {
-                        emitAll(database.tvShowDao().getByIds(tvShows.map { it.id }))
+                        emitAll(database.tvShowDao().getByIds(tvShows.map { it.id }, UserPreferences.activeProfileId))
                     }
                 }
                 else -> emit(emptyList<TvShow>())
@@ -107,7 +107,7 @@ class MovieViewModel(id: String, private val database: AppDatabase) : ViewModel(
         try {
             val movie = UserPreferences.currentProvider!!.getMovie(id)
 
-            database.movieDao().getById(id)?.let { movieDb ->
+            database.movieDao().getById(id, UserPreferences.activeProfileId)?.let { movieDb ->
                 movie.merge(movieDb)
             }
             database.movieDao().insert(movie)
