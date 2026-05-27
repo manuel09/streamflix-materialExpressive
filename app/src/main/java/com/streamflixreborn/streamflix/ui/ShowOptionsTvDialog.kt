@@ -157,7 +157,7 @@ class ShowOptionsTvDialog(
                     // NUOVA LOGICA: Aggiorna lo stato isWatching della serie TV madre
                     episode.tvShow?.let { tvShow ->
                         val episodeDao = AppDatabase.getInstance(context).episodeDao()
-                        val isStillWatching = episodeDao.hasAnyWatchHistoryForTvShow(tvShow.id)
+                        val isStillWatching = episodeDao.hasAnyWatchHistoryForTvShow(tvShow.id, UserPreferences.activeProfileId)
 
                         // Se l'episodio è stato marcato come VISTO E non ci sono altri
                         // episodi con cronologia, impostiamo isWatching a false.
@@ -189,7 +189,7 @@ class ShowOptionsTvDialog(
                     val episodeDao = AppDatabase.getInstance(context).episodeDao()
                     val episodeNumber = episode.number
                     val tvShowId = episode.tvShow?.id ?: return@checkProviderAndRun
-                    val allEpisodes = episodeDao.getEpisodesByTvShowIdAndSeason(tvShowId, episode.season?.id).filter { it.number <= episodeNumber }
+                    val allEpisodes = episodeDao.getEpisodesByTvShowIdAndSeason(tvShowId, episode.season?.id, UserPreferences.activeProfileId).filter { it.number <= episodeNumber }
                     val targetState = !episode.isWatched // If current is watched, we unwatch; else, we mark watched
                     val now = Calendar.getInstance()
                     val currentProvider = UserPreferences.currentProvider ?: return@checkProviderAndRun
@@ -211,7 +211,7 @@ class ShowOptionsTvDialog(
                     // Se l'obiettivo era marcare come VISTO, e non ci sono cronologie, si imposta isWatching a false.
                     if (targetState) {
                         episode.tvShow?.let { tvShow ->
-                            if (!episodeDao.hasAnyWatchHistoryForTvShow(tvShow.id)) {
+                            if (!episodeDao.hasAnyWatchHistoryForTvShow(tvShow.id, UserPreferences.activeProfileId)) {
                                 AppDatabase.getInstance(context).tvShowDao().save(tvShow.copy().apply {
                                     merge(tvShow)
                                     isWatching = false
@@ -256,7 +256,7 @@ class ShowOptionsTvDialog(
                     episode.tvShow?.let { tvShow ->
                         // Rimuoviamo isWatching solo se NON ci sono altri episodi in corso
                         val episodeDao = AppDatabase.getInstance(context).episodeDao()
-                        if (!episodeDao.hasAnyWatchHistoryForTvShow(tvShow.id)) {
+                        if (!episodeDao.hasAnyWatchHistoryForTvShow(tvShow.id, UserPreferences.activeProfileId)) {
                             AppDatabase.getInstance(context).tvShowDao().save(tvShow.copy().apply {
                                 merge(tvShow)
                                 isWatching = false
@@ -299,9 +299,10 @@ class ShowOptionsTvDialog(
                     val provider = UserPreferences.currentProvider ?: return@checkProviderAndRun
                     context.toActivity()?.lifecycleScope?.launch(Dispatchers.IO) {
                         val dao = database.movieDao()
-                        val current = dao.getById(movie.id)?.isFavorite ?: false
+                        val current = dao.getById(movie.id, UserPreferences.activeProfileId)?.isFavorite ?: false
                         val newValue = !current
                         val resolvedMovie = ArtworkRepair.resolveMovieForFavorite(context, movie, newValue)
+
                         dao.upsertFavorite(resolvedMovie, newValue)
                         if (newValue) {
                             UserDataCache.addMovieToFavorites(context, provider, resolvedMovie.copy().apply { isFavorite = true })
@@ -399,7 +400,7 @@ class ShowOptionsTvDialog(
                     val provider = UserPreferences.currentProvider ?: return@checkProviderAndRun
                     context.toActivity()?.lifecycleScope?.launch(Dispatchers.IO) {
                         val dao = database.tvShowDao()
-                        val current = dao.getById(tvShow.id)?.isFavorite ?: false
+                        val current = dao.getById(tvShow.id, UserPreferences.activeProfileId)?.isFavorite ?: false
                         val newValue = !current
                         val resolvedTvShow = ArtworkRepair.resolveTvShowForFavorite(context, tvShow, newValue)
 
