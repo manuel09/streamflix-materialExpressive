@@ -14,81 +14,34 @@ import com.streamflixreborn.streamflix.utils.UserPreferences
 @Dao
 interface EpisodeDao {
 
-    @Query("SELECT * FROM episodes")
-    fun getAllForBackup(): List<Episode>
+    @Query("SELECT * FROM episodes WHERE profileId = :profileId")
+    fun getAllForBackup(profileId: String): List<Episode>
 
-    @Query(
-        """
-        SELECT episodes.*, (SELECT MAX(e.watchedDate)
-                    FROM episodes e
-                    WHERE e.tvShow = episodes.tvShow AND e.isWatched = 1) AS watchedDate
-        FROM tv_shows
-        JOIN episodes ON episodes.id = (
-            SELECT e.id 
-            FROM episodes e 
-            JOIN seasons s ON s.id = e.season
-            JOIN (
-                SELECT e2.id, s2.number as seasonNumber, e2.number AS episodeNumber
-                FROM episodes e2
-                JOIN seasons s2 ON s2.id = e2.season
-                WHERE e2.tvShow = episodes.tvShow AND e2.isWatched = 1
-                ORDER BY s2.number DESC, e2.number DESC
-                LIMIT 1
-            ) last_watched
-            WHERE e.tvShow = tv_shows.id AND (
-                (s.number = last_watched.seasonNumber AND e.number > last_watched.episodeNumber) 
-                    OR s.number > last_watched.seasonNumber
-            )
-            ORDER BY s.number, e.number
-            LIMIT 1
-        )
-        WHERE tv_shows.isWatching = 1 AND NOT EXISTS (
-            SELECT 1
-            FROM episodes e
-            WHERE e.tvShow = episodes.tvShow AND e.lastEngagementTimeUtcMillis IS NOT NULL
-        )
-    """
-    )
-    fun getNextEpisodesToWatch(): Flow<List<Episode>>
+    @Query("SELECT * FROM episodes WHERE id = :id AND profileId = :profileId")
+    fun getById(id: String, profileId: String): Episode?
 
-    @Query("SELECT * FROM episodes WHERE id = :id")
-    fun getById(id: String): Episode?
+    @Query("SELECT * FROM episodes WHERE id IN (:ids) AND profileId = :profileId")
+    fun getByIds(ids: List<String>, profileId: String): List<Episode>
 
-    @Query("SELECT * FROM episodes WHERE id IN (:ids)")
-    fun getByIds(ids: List<String>): List<Episode>
+    @Query("SELECT * FROM episodes WHERE id IN (:ids) AND profileId = :profileId")
+    fun getByIdsAsFlow(ids: List<String>, profileId: String): Flow<List<Episode>>
+    @Query("SELECT * FROM episodes WHERE season = :seasonId AND profileId = :profileId")
+    fun getBySeasonIdAsFlow(seasonId: String, profileId: String): Flow<List<Episode>>
 
-    @Query("SELECT * FROM episodes WHERE id IN (:ids)")
-    fun getByIdsAsFlow(ids: List<String>): Flow<List<Episode>>
-    @Query("SELECT * FROM episodes WHERE season = :seasonId")
-    fun getBySeasonIdAsFlow(seasonId: String): Flow<List<Episode>>
+    @Query("SELECT COUNT(id) > 0 FROM episodes WHERE tvShow = :tvShowId AND lastEngagementTimeUtcMillis IS NOT NULL AND profileId = :profileId")
+    fun hasAnyWatchHistoryForTvShow(tvShowId: String, profileId: String): Boolean
 
-    @Query("SELECT COUNT(id) > 0 FROM episodes WHERE tvShow = :tvShowId AND lastEngagementTimeUtcMillis IS NOT NULL")
-    fun hasAnyWatchHistoryForTvShow(tvShowId: String): Boolean
+    @Query("SELECT * FROM episodes WHERE tvShow = :tvShowId AND profileId = :profileId ORDER BY season, number")
+    fun getByTvShowId(tvShowId: String, profileId: String): List<Episode>
 
-    @Query("SELECT * FROM episodes WHERE tvShow = :tvShowId ORDER BY season, number")
-    fun getByTvShowId(tvShowId: String): List<Episode>
+    @Query("SELECT * FROM episodes WHERE tvShow = :tvShowId AND profileId = :profileId ORDER BY season, number")
+    fun getByTvShowIdAsFlow(tvShowId: String, profileId: String): Flow<List<Episode>>
 
-    @Query("SELECT * FROM episodes WHERE tvShow = :tvShowId ORDER BY season, number")
-    fun getByTvShowIdAsFlow(tvShowId: String): Flow<List<Episode>>
+    @Query("SELECT * FROM episodes WHERE season = :seasonId AND profileId = :profileId ORDER BY season, number")
+    fun getBySeasonId(seasonId: String, profileId: String): List<Episode>
 
-    @Query("SELECT * FROM episodes WHERE season = :seasonId ORDER BY season, number")
-    fun getBySeasonId(seasonId: String): List<Episode>
-
-    @Query("SELECT * FROM episodes WHERE lastEngagementTimeUtcMillis IS NOT NULL ORDER BY lastEngagementTimeUtcMillis DESC")
-    fun getWatchingEpisodes(): Flow<List<Episode>>
-
-    @Query(
-        """
-        SELECT DISTINCT tvShow
-        FROM episodes
-        WHERE tvShow IS NOT NULL
-          AND (
-              lastEngagementTimeUtcMillis IS NOT NULL
-              OR isWatched = 1
-          )
-        """
-    )
-    fun getArtworkRepairTvShowIds(): List<String>
+    @Query("SELECT * FROM episodes WHERE lastEngagementTimeUtcMillis IS NOT NULL AND profileId = :profileId ORDER BY lastEngagementTimeUtcMillis DESC")
+    fun getWatchingEpisodes(profileId: String): Flow<List<Episode>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insert(episode: Episode)
@@ -96,32 +49,32 @@ interface EpisodeDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertAll(episodes: List<Episode>)
 
-    @Query("SELECT * FROM episodes WHERE tvShow = :tvShowId")
-    fun getEpisodesByTvShowId(tvShowId: String): List<Episode>
-    @Query("SELECT * FROM episodes WHERE tvShow = :tvShowId AND season = :season")
-    fun getEpisodesByTvShowIdAndSeason(tvShowId: String, season: String?): List<Episode>
+    @Query("SELECT * FROM episodes WHERE tvShow = :tvShowId AND profileId = :profileId")
+    fun getEpisodesByTvShowId(tvShowId: String, profileId: String): List<Episode>
+    @Query("SELECT * FROM episodes WHERE tvShow = :tvShowId AND season = :season AND profileId = :profileId")
+    fun getEpisodesByTvShowIdAndSeason(tvShowId: String, season: String?, profileId: String): List<Episode>
     @Update
     fun update(episode: Episode)
 
-    @Query("DELETE FROM episodes")
-    fun deleteAll()
+    @Query("DELETE FROM episodes WHERE profileId = :profileId")
+    fun deleteAll(profileId: String)
 
     @Transaction
     fun save(episode: Episode) {
         val provider = UserPreferences.currentProvider?.name ?: "Unknown"
-        val existing = getById(episode.id)
+        episode.profileId = UserPreferences.activeProfileId
+        val existing = getById(episode.id, episode.profileId)
         if (existing != null) {
             existing.merge(episode)
             update(existing)
-            Log.d("DatabaseVerify", "[$provider] REAL-TIME UPDATE Episode: ${existing.title} (Watched: ${existing.isWatched}, Hist: ${existing.watchHistory != null})")
+            Log.d("DatabaseVerify", "[$provider] REAL-TIME UPDATE Episode: ${existing.title} (Watched: ${existing.isWatched}, Hist: ${existing.watchHistory != null}, Profile: ${episode.profileId})")
         } else {
             insert(episode)
-            Log.d("DatabaseVerify", "[$provider] REAL-TIME INSERT Episode: ${episode.id} (Watched: ${episode.isWatched})")
+            Log.d("DatabaseVerify", "[$provider] REAL-TIME INSERT Episode: ${episode.id} (Watched: ${episode.isWatched}, Profile: ${episode.profileId})")
         }
     }
 
-    @Query(
-        """
+    @Query("""
         UPDATE episodes
         SET isWatched = 0
         WHERE id IN (
@@ -132,57 +85,52 @@ interface EpisodeDao {
                   SELECT episode.tvShow AS tvShow, season.number AS seasonNumber, episode.number AS number
                   FROM episodes episode
                   LEFT JOIN seasons season ON episode.season = season.id
-                  WHERE episode.id = :id
+                  WHERE episode.id = :id AND episode.profileId = :profileId
             ) episode2 ON (episode.tvShow = episode2.tvShow AND (season.number > episode2.seasonNumber OR (season.number = episode2.seasonNumber AND episode.number > episode2.number)))
+            WHERE episode.profileId = :profileId
         )
-    """
-    )
-    fun resetProgressionFromEpisode(id: String)
+    """)
+    fun resetProgressionFromEpisode(id: String, profileId: String)
 
     @Query("""
-    SELECT e.* 
-    FROM episodes e
-    JOIN seasons s ON s.id = e.season
-    WHERE e.tvShow = :tvShowId AND s.number = :seasonNumber
-    ORDER BY s.number, e.number
-""")
-    fun getByTvShowIdAndSeasonNumber(tvShowId: String, seasonNumber: Int): List<Episode>
+        SELECT e.* 
+        FROM episodes e
+        JOIN seasons s ON s.id = e.season
+        WHERE e.tvShow = :tvShowId AND s.number = :seasonNumber AND e.profileId = :profileId
+        ORDER BY s.number, e.number
+    """)
+    fun getByTvShowIdAndSeasonNumber(tvShowId: String, seasonNumber: Int, profileId: String): List<Episode>
 
-    @Query("UPDATE episodes SET lastPlaybackPositionMillis = NULL, durationMillis = NULL, lastEngagementTimeUtcMillis = NULL WHERE tvShow = :tvShowId")
-    fun removeFromContinueWatchingByTvShow(tvShowId: String)
+    @Query("UPDATE episodes SET lastPlaybackPositionMillis = NULL, durationMillis = NULL, lastEngagementTimeUtcMillis = NULL WHERE tvShow = :tvShowId AND profileId = :profileId")
+    fun removeFromContinueWatchingByTvShow(tvShowId: String, profileId: String)
 
-    @Query("UPDATE episodes SET lastPlaybackPositionMillis = NULL, durationMillis = NULL, lastEngagementTimeUtcMillis = NULL WHERE id = :id")
-    fun removeFromContinueWatching(id: String)
+    @Query("UPDATE episodes SET lastPlaybackPositionMillis = NULL, durationMillis = NULL, lastEngagementTimeUtcMillis = NULL WHERE id = :id AND profileId = :profileId")
+    fun removeFromContinueWatching(id: String, profileId: String)
 
-    @Query("UPDATE episodes SET isWatched = :isWatched WHERE id = :id")
-    fun setWatched(id: String, isWatched: Boolean)
+    @Query("UPDATE episodes SET isWatched = :isWatched WHERE id = :id AND profileId = :profileId")
+    fun setWatched(id: String, isWatched: Boolean, profileId: String)
 
     @Transaction
     fun markAsWatchedUpToHere(episodeId: String) {
-        val target = getById(episodeId) ?: return
+        val profileId = UserPreferences.activeProfileId
+        val target = getById(episodeId, profileId) ?: return
         val tvShowId = target.tvShow?.id ?: return
-        val targetSeasonId = target.season?.id ?: return
-        
-        // This is a simplified version. Ideally we should use season/episode numbers.
-        // For now, let's just mark the current episode and all episodes in the same show fetched so far?
-        // No, let's try to find them by IDs if we had them.
-        // Better: use a query.
-        markAsWatchedUpToHereQuery(tvShowId, episodeId)
+        markAsWatchedUpToHereQuery(tvShowId, episodeId, profileId)
     }
 
     @Query("""
         UPDATE episodes 
         SET isWatched = 1 
-        WHERE tvShow = :tvShowId AND id IN (
+        WHERE tvShow = :tvShowId AND profileId = :profileId AND id IN (
             SELECT e.id FROM episodes e
             LEFT JOIN seasons s ON e.season = s.id
             JOIN (
                 SELECT e2.tvShow as tvShow, s2.number as seasonNumber, e2.number as number
                 FROM episodes e2
                 LEFT JOIN seasons s2 ON e2.season = s2.id
-                WHERE e2.id = :episodeId
+                WHERE e2.id = :episodeId AND e2.profileId = :profileId
             ) target ON (e.tvShow = target.tvShow AND (s.number < target.seasonNumber OR (s.number = target.seasonNumber AND e.number <= target.number)))
         )
     """)
-    fun markAsWatchedUpToHereQuery(tvShowId: String, episodeId: String)
+    fun markAsWatchedUpToHereQuery(tvShowId: String, episodeId: String, profileId: String)
 }

@@ -29,6 +29,7 @@ class Episode(
 
     var tvShow: TvShow? = null,
     var season: Season? = null,
+    var profileId: String = "default"
 ) : WatchItem, AppAdapter.Item {
 
     var released = released?.toCalendar()
@@ -42,6 +43,7 @@ class Episode(
         if (isWatched != episode.isWatched) return false
         if (watchedDate != episode.watchedDate) return false
         if (watchHistory != episode.watchHistory) return false
+        if (profileId != episode.profileId) return false
         return true
     }
 
@@ -49,6 +51,7 @@ class Episode(
         this.isWatched = episode.isWatched
         this.watchedDate = episode.watchedDate
         this.watchHistory = episode.watchHistory
+        this.profileId = episode.profileId
         return this
     }
 
@@ -65,6 +68,7 @@ class Episode(
         poster: String? = this.poster,
         tvShow: TvShow? = this.tvShow,
         season: Season? = this.season,
+        profileId: String = this.profileId
     ) = Episode(
         id,
         number,
@@ -74,6 +78,7 @@ class Episode(
         overview,
         tvShow,
         season,
+        profileId
     )
 
     override fun equals(other: Any?): Boolean {
@@ -93,6 +98,7 @@ class Episode(
         if (isWatched != other.isWatched) return false
         if (watchedDate != other.watchedDate) return false
         if (watchHistory != other.watchHistory) return false
+        if (profileId != other.profileId) return false
         if (!::itemType.isInitialized || !other::itemType.isInitialized) return false
         return itemType == other.itemType
     }
@@ -109,6 +115,7 @@ class Episode(
         result = 31 * result + isWatched.hashCode()
         result = 31 * result + (watchedDate?.hashCode() ?: 0)
         result = 31 * result + (watchHistory?.hashCode() ?: 0)
+        result = 31 * result + profileId.hashCode()
         result = 31 * result + (if (::itemType.isInitialized) itemType.hashCode() else 0)
         return result
     }
