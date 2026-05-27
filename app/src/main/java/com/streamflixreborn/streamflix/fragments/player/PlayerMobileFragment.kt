@@ -865,7 +865,7 @@ class PlayerMobileFragment : Fragment() {
 
                 val watchItem: WatchItem? = when (videoType) {
                     is Video.Type.Movie -> database.movieDao().getById(videoType.id)
-                    is Video.Type.Episode -> database.episodeDao().getById(videoType.id)
+                    is Video.Type.Episode -> database.episodeDao().getById(videoType.id, UserPreferences.activeProfileId)
                 }
 
                 when (videoType) {
@@ -881,7 +881,7 @@ class PlayerMobileFragment : Fragment() {
                         val episode = watchItem as? Episode
                         episode?.let {
                             if (player.hasFinished()) {
-                                database.episodeDao().resetProgressionFromEpisode(videoType.id)
+                                database.episodeDao().resetProgressionFromEpisode(videoType.id, UserPreferences.activeProfileId)
                                 UserDataCache.removeEpisodeFromContinueWatching(requireContext(), provider, it.id)
                             }
                             database.episodeDao().update(it)
@@ -894,7 +894,7 @@ class PlayerMobileFragment : Fragment() {
                                 database.tvShowDao().getById(tvShow.id)
                             }?.let { tvShow ->
                                 val episodeDao = database.episodeDao()
-                                val isStillWatching = episodeDao.hasAnyWatchHistoryForTvShow(tvShow.id)
+                                val isStillWatching = episodeDao.hasAnyWatchHistoryForTvShow(tvShow.id, UserPreferences.activeProfileId)
 
                                 database.tvShowDao().save(tvShow.copy().apply {
                                     merge(tvShow)
@@ -1118,7 +1118,7 @@ class PlayerMobileFragment : Fragment() {
                     val videoType = args.videoType
                     val watchItem: WatchItem? = when (videoType) {
                         is Video.Type.Movie -> database.movieDao().getById(videoType.id)
-                        is Video.Type.Episode -> database.episodeDao().getById(videoType.id)
+                        is Video.Type.Episode -> database.episodeDao().getById(videoType.id, UserPreferences.activeProfileId)
                     }
 
                     when {
@@ -1154,7 +1154,7 @@ class PlayerMobileFragment : Fragment() {
                                     val episode = watchItem as? Episode
                                     episode?.let {
                                         if (player.hasFinished()) {
-                                            database.episodeDao().resetProgressionFromEpisode(videoType.id)
+                                            database.episodeDao().resetProgressionFromEpisode(videoType.id, UserPreferences.activeProfileId)
                                             UserDataCache.removeEpisodeFromContinueWatching(requireContext(), provider, it.id)
                                             queueNextEpisodeForContinueWatching(provider)
                                         }
@@ -1167,7 +1167,7 @@ class PlayerMobileFragment : Fragment() {
                                             database.tvShowDao().getById(tvShow.id)
                                         }?.let { tvShow ->
                                             val episodeDao = database.episodeDao()
-                                            val isStillWatching = episodeDao.hasAnyWatchHistoryForTvShow(tvShow.id)
+                                            val isStillWatching = episodeDao.hasAnyWatchHistoryForTvShow(tvShow.id, UserPreferences.activeProfileId)
                                             
                                             database.tvShowDao().save(tvShow.copy().apply {
                                                 merge(tvShow)
@@ -1288,7 +1288,7 @@ class PlayerMobileFragment : Fragment() {
     private fun queueNextEpisodeForContinueWatching(provider: com.streamflixreborn.streamflix.providers.Provider) {
         val nextEpisode = EpisodeManager.peekNextEpisode() ?: return
         val episodeDao = database.episodeDao()
-        val persistedNextEpisode = episodeDao.getById(nextEpisode.id)?.apply {
+        val persistedNextEpisode = episodeDao.getById(nextEpisode.id, UserPreferences.activeProfileId)?.apply {
             isWatched = false
             watchedDate = null
             watchHistory = WatchItem.WatchHistory(

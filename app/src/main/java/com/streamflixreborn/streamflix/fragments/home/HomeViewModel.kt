@@ -77,14 +77,14 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
                 if (cache != null && cache.continueWatchingEpisodes.isNotEmpty()) {
                     emit(cache.continueWatchingEpisodes.map { it.toEpisode() })
                 } else {
-                    emitAll(database.episodeDao().getWatchingEpisodes())
+                    emitAll(database.episodeDao().getWatchingEpisodes(UserPreferences.activeProfileId))
                 }
             }.flowOn(Dispatchers.IO),
             _userDataCache.transformLatest { cache: UserDataCache.UserData? ->
                 if (cache != null && cache.continueWatchingEpisodes.isNotEmpty()) {
                     emit(cache.continueWatchingEpisodes.map { it.toEpisode() })
                 } else {
-                    emitAll(database.episodeDao().getNextEpisodesToWatch())
+                    emitAll(database.episodeDao().getNextEpisodesToWatch(UserPreferences.activeProfileId))
                 }
             }.flowOn(Dispatchers.IO),
             database.tvShowDao().getAll(UserPreferences.activeProfileId).flowOn(Dispatchers.IO),
@@ -407,7 +407,7 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
             val moviesDeferred = async { db.movieDao().getFavorites(UserPreferences.activeProfileId).first() }
             val tvShowsDeferred = async { db.tvShowDao().getFavorites(UserPreferences.activeProfileId).first() }
             val watchingMoviesDeferred = async { db.movieDao().getWatchingMovies(UserPreferences.activeProfileId).first() }
-            val watchingEpisodesDeferred = async { db.episodeDao().getWatchingEpisodes().first() }
+            val watchingEpisodesDeferred = async { db.episodeDao().getWatchingEpisodes(UserPreferences.activeProfileId).first() }
 
             val movies = moviesDeferred.await()
             val tvShows = tvShowsDeferred.await()
@@ -470,15 +470,15 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
         val appContext = StreamFlixApp.instance.applicationContext
         val db = AppDatabase.getInstance(appContext)
         when (item) {
-            is Movie -> db.movieDao().setWatched(item.id, true)
+            is Movie -> db.movieDao().setWatched(item.id, true, UserPreferences.activeProfileId)
             is TvShow -> {
                 // For TV Show, mark all episodes as watched
-                val episodes = db.episodeDao().getEpisodesByTvShowId(item.id)
+                val episodes = db.episodeDao().getEpisodesByTvShowId(item.id, UserPreferences.activeProfileId)
                 episodes.forEach { it.isWatched = true }
                 db.episodeDao().insertAll(episodes)
-                db.tvShowDao().setWatching(item.id, false) // Consider finished
+                db.tvShowDao().setWatching(item.id, false, UserPreferences.activeProfileId) // Consider finished
             }
-            is Episode -> db.episodeDao().setWatched(item.id, true)
+            is Episode -> db.episodeDao().setWatched(item.id, true, UserPreferences.activeProfileId)
         }
         val provider = currentProvider ?: return@launch
         loadUserDataCache(provider)
@@ -496,9 +496,9 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
         val appContext = StreamFlixApp.instance.applicationContext
         val db = AppDatabase.getInstance(appContext)
         when (item) {
-            is Movie -> db.movieDao().removeFromContinueWatching(item.id)
-            is TvShow -> db.episodeDao().removeFromContinueWatchingByTvShow(item.id)
-            is Episode -> db.episodeDao().removeFromContinueWatching(item.id)
+            is Movie -> db.movieDao().removeFromContinueWatching(item.id, UserPreferences.activeProfileId)
+            is TvShow -> db.episodeDao().removeFromContinueWatchingByTvShow(item.id, UserPreferences.activeProfileId)
+            is Episode -> db.episodeDao().removeFromContinueWatching(item.id, UserPreferences.activeProfileId)
         }
         val provider = currentProvider ?: return@launch
         loadUserDataCache(provider)

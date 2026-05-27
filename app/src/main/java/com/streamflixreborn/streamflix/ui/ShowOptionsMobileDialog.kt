@@ -141,7 +141,7 @@ class ShowOptionsMobileDialog(
                     // NUOVA LOGICA: Aggiorna lo stato isWatching della serie TV madre
                     episode.tvShow?.let { tvShow ->
                         val episodeDao = AppDatabase.getInstance(context).episodeDao()
-                        val isStillWatching = episodeDao.hasAnyWatchHistoryForTvShow(tvShow.id)
+                        val isStillWatching = episodeDao.hasAnyWatchHistoryForTvShow(tvShow.id, UserPreferences.activeProfileId)
 
                         // Se l'episodio è stato marcato come VISTO E non ci sono altri
                         // episodi con cronologia, impostiamo isWatching a false.
@@ -195,7 +195,7 @@ class ShowOptionsMobileDialog(
                     // Se l'obiettivo era marcare come VISTO, e non ci sono cronologie, si imposta isWatching a false.
                     if (targetState) {
                         episode.tvShow?.let { tvShow ->
-                            if (!episodeDao.hasAnyWatchHistoryForTvShow(tvShow.id)) {
+                            if (!episodeDao.hasAnyWatchHistoryForTvShow(tvShow.id, UserPreferences.activeProfileId)) {
                                 AppDatabase.getInstance(context).tvShowDao().save(tvShow.copy().apply {
                                     merge(tvShow)
                                     isWatching = false

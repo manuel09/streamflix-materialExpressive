@@ -732,11 +732,11 @@ class MovieViewHolder(
                 checkProviderAndRun {
                     itemView.findViewTreeLifecycleOwner()?.lifecycleScope?.launch(Dispatchers.IO) {
                         val dao = database.movieDao()
-                        val current = dao.getById(movie.id)?.isFavorite ?: false
+                        val current = dao.getById(movie.id, UserPreferences.activeProfileId)?.isFavorite ?: false
                         val newValue = !current
                         val resolvedMovie = ArtworkRepair.resolveMovieForFavorite(context, movie, newValue)
 
-                        dao.upsertFavorite(resolvedMovie, newValue)
+                        dao.upsertFavorite(resolvedMovie, newValue, UserPreferences.activeProfileId)
 
                         withContext(Dispatchers.Main) {
                             movie.poster = resolvedMovie.poster
@@ -861,11 +861,11 @@ class MovieViewHolder(
                 checkProviderAndRun {
                     itemView.findViewTreeLifecycleOwner()?.lifecycleScope?.launch(Dispatchers.IO) {
                         val dao = database.movieDao()
-                        val current = dao.getById(movie.id)?.isFavorite ?: false
+                        val current = dao.getById(movie.id, UserPreferences.activeProfileId)?.isFavorite ?: false
                         val newValue = !current
                         val resolvedMovie = ArtworkRepair.resolveMovieForFavorite(context, movie, newValue)
 
-                        dao.upsertFavorite(resolvedMovie, newValue)
+                        dao.upsertFavorite(resolvedMovie, newValue, UserPreferences.activeProfileId)
 
                         withContext(Dispatchers.Main) {
                             movie.poster = resolvedMovie.poster

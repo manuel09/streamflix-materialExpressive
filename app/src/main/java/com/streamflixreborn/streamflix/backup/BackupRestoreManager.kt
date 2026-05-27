@@ -15,6 +15,7 @@ import com.streamflixreborn.streamflix.models.TvShow
 import com.streamflixreborn.streamflix.models.WatchItem
 import com.streamflixreborn.streamflix.providers.Provider
 import com.streamflixreborn.streamflix.utils.UserDataCache
+import com.streamflixreborn.streamflix.utils.UserPreferences
 import kotlinx.coroutines.flow.first
 import org.json.JSONArray
 import org.json.JSONObject
@@ -311,10 +312,10 @@ class BackupRestoreManager(
 
     private suspend fun buildCacheForProvider(providerCtx: ProviderBackupContext) {
         try {
-            val movies = providerCtx.movieDao.getFavorites().first()
-            val tvShows = providerCtx.tvShowDao.getFavorites().first()
-            val watchingMovies = providerCtx.movieDao.getWatchingMovies().first()
-            val watchingEpisodes = providerCtx.episodeDao.getWatchingEpisodes().first()
+            val movies = providerCtx.movieDao.getFavorites(UserPreferences.activeProfileId).first()
+            val tvShows = providerCtx.tvShowDao.getFavorites(UserPreferences.activeProfileId).first()
+            val watchingMovies = providerCtx.movieDao.getWatchingMovies(UserPreferences.activeProfileId).first()
+            val watchingEpisodes = providerCtx.episodeDao.getWatchingEpisodes(UserPreferences.activeProfileId).first()
 
             UserDataCache.writeMovies(context, providerCtx.provider, movies + watchingMovies)
             UserDataCache.writeTvShows(context, providerCtx.provider, tvShows)

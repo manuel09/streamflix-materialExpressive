@@ -594,11 +594,11 @@ class TvShowViewHolder(
                 checkProviderAndRun {
                     itemView.findViewTreeLifecycleOwner()?.lifecycleScope?.launch(Dispatchers.IO) {
                         val dao = database.tvShowDao()
-                        val current = dao.getById(tvShow.id)?.isFavorite ?: false
+                        val current = dao.getById(tvShow.id, UserPreferences.activeProfileId)?.isFavorite ?: false
                         val newValue = !current
                         val resolvedTvShow = ArtworkRepair.resolveTvShowForFavorite(context, tvShow, newValue)
 
-                        dao.upsertFavorite(resolvedTvShow, newValue)
+                        dao.upsertFavorite(resolvedTvShow, newValue, UserPreferences.activeProfileId)
 
                         withContext(Dispatchers.Main) {
                             tvShow.poster = resolvedTvShow.poster
@@ -728,11 +728,11 @@ class TvShowViewHolder(
                 checkProviderAndRun {
                     itemView.findViewTreeLifecycleOwner()?.lifecycleScope?.launch(Dispatchers.IO) {
                         val dao = database.tvShowDao()
-                        val current = dao.getById(tvShow.id)?.isFavorite ?: false
+                        val current = dao.getById(tvShow.id, UserPreferences.activeProfileId)?.isFavorite ?: false
                         val newValue = !current
                         val resolvedTvShow = ArtworkRepair.resolveTvShowForFavorite(context, tvShow, newValue)
 
-                        dao.upsertFavorite(resolvedTvShow, newValue)
+                        dao.upsertFavorite(resolvedTvShow, newValue, UserPreferences.activeProfileId)
 
                         withContext(Dispatchers.Main) {
                             tvShow.poster = resolvedTvShow.poster
