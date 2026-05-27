@@ -34,14 +34,14 @@ class SeasonViewModel(
             when (state) {
                 is State.SuccessLoadingEpisodes -> {
                     database.episodeDao()
-                        .getBySeasonIdAsFlow(seasonId)
+                        .getBySeasonIdAsFlow(seasonId, UserPreferences.activeProfileId)
                         .collect { emit(it) }
                 }
                 else -> emit(emptyList())
             }
         },
-        database.tvShowDao().getByIdAsFlow(tvShowId),
-        database.seasonDao().getByIdAsFlow(seasonId),
+        database.tvShowDao().getByIdAsFlow(tvShowId, UserPreferences.activeProfileId),
+        database.seasonDao().getByIdAsFlow(seasonId, UserPreferences.activeProfileId),
     ) { state, episodesDb, tvShow, season ->
         season?.number?.let { seasonNumber = it }
         tvShow?.title?.let { tvShowTitle = it }
@@ -87,7 +87,7 @@ class SeasonViewModel(
 
             ids.chunked(400).forEach { chunk ->
                 database.episodeDao()
-                    .getByIds(chunk)
+                    .getByIds(chunk, UserPreferences.activeProfileId)
                     .forEach { episodeDb ->
                         episodeMap[episodeDb.id]?.merge(episodeDb)
                     }

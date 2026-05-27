@@ -487,7 +487,7 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
     fun markAsWatchedUpTo(episode: Episode) = viewModelScope.launch(Dispatchers.IO) {
         val appContext = StreamFlixApp.instance.applicationContext
         val db = AppDatabase.getInstance(appContext)
-        db.episodeDao().markAsWatchedUpToHere(episode.id)
+        db.episodeDao().markAsWatchedUpToHere(episode.id, UserPreferences.activeProfileId)
         val provider = currentProvider ?: return@launch
         loadUserDataCache(provider)
     }

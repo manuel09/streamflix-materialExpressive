@@ -1320,7 +1320,7 @@ class PlayerTvFragment : Fragment() {
                             UserDataCache.read(requireContext(), provider)?.continueWatchingEpisodes
                                 ?.find { it.id == videoType.id }?.toEpisode()
                         } else null
-                        episode ?: database.episodeDao().getById(videoType.id)
+                        episode ?: database.episodeDao().getById(videoType.id, UserPreferences.activeProfileId)
                     }
                 }
                 
