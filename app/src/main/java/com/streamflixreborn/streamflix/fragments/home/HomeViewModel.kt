@@ -21,7 +21,6 @@ import com.streamflixreborn.streamflix.utils.UserDataCache.toEpisode
 import com.streamflixreborn.streamflix.utils.UserDataCache.toMovie
 import com.streamflixreborn.streamflix.utils.UserDataCache.toTvShow
 import com.streamflixreborn.streamflix.utils.UserPreferences
-import com.streamflixreborn.streamflix.utils.combine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -29,11 +28,14 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 
@@ -59,26 +61,26 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
     private var currentProvider: Provider? = null
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val state: Flow<State> = combine(
+    val state: StateFlow<State> = com.streamflixreborn.streamflix.utils.combine(
         _state,
 
         // CONTINUE WATCHING - Cache-first (faster on slow DB devices), falls back to DB
-        combine(
-            _userDataCache.transformLatest { cache ->
+        kotlinx.coroutines.flow.combine(
+            _userDataCache.transformLatest { cache: UserDataCache.UserData? ->
                 if (cache != null && cache.continueWatchingMovies.isNotEmpty()) {
                     emit(cache.continueWatchingMovies.map { it.toMovie() })
                 } else {
                     emitAll(database.movieDao().getWatchingMovies())
                 }
             }.flowOn(Dispatchers.IO),
-            _userDataCache.transformLatest { cache ->
+            _userDataCache.transformLatest { cache: UserDataCache.UserData? ->
                 if (cache != null && cache.continueWatchingEpisodes.isNotEmpty()) {
                     emit(cache.continueWatchingEpisodes.map { it.toEpisode() })
                 } else {
                     emitAll(database.episodeDao().getWatchingEpisodes())
                 }
             }.flowOn(Dispatchers.IO),
-            _userDataCache.transformLatest { cache ->
+            _userDataCache.transformLatest { cache: UserDataCache.UserData? ->
                 if (cache != null && cache.continueWatchingEpisodes.isNotEmpty()) {
                     emit(cache.continueWatchingEpisodes.map { it.toEpisode() })
                 } else {
@@ -86,7 +88,7 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
                 }
             }.flowOn(Dispatchers.IO),
             database.tvShowDao().getAll().flowOn(Dispatchers.IO),
-        ) { watchingMovies, watchingEpisodes, watchNextEpisodes, tvShows ->
+        ) { watchingMovies: List<Movie>, watchingEpisodes: List<Episode>, watchNextEpisodes: List<Episode>, tvShows: List<TvShow> ->
 
             val allEpisodes = (watchingEpisodes + watchNextEpisodes)
                 .distinctBy { it.id }
@@ -105,12 +107,12 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
 
             val enrichedEpisodes = enrichContinueWatchingEpisodes(
                 episodes = allEpisodes.map { episode ->
-                    episode.copy(
+                    val newEpisode = episode.copy(
                         tvShow = episode.tvShow?.id?.let { tvShowsMap[it] } ?: episode.tvShow,
                         season = episode.season?.id?.let { seasonsMap[it] } ?: episode.season,
-                    ).apply {
-                        merge(episode)
-                    }
+                    )
+                    newEpisode.merge(episode)
+                    newEpisode
                 }
             )
 
@@ -138,14 +140,14 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
         }.flowOn(Dispatchers.IO),
 
         // FAVORITES - from cache first, DB as fallback
-        _userDataCache.transformLatest { cache ->
+        _userDataCache.transformLatest { cache: UserDataCache.UserData? ->
             if (cache != null && cache.favoritesMovies.isNotEmpty()) {
                 emit(cache.favoritesMovies.map { it.toMovie() })
             } else {
                 emitAll(database.movieDao().getFavorites())
             }
         }.flowOn(Dispatchers.IO),
-        _userDataCache.transformLatest { cache ->
+        _userDataCache.transformLatest { cache: UserDataCache.UserData? ->
             if (cache != null && cache.favoritesTvShows.isNotEmpty()) {
                 emit(cache.favoritesTvShows.map { it.toTvShow() })
             } else {
@@ -154,14 +156,14 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
         }.flowOn(Dispatchers.IO),
 
         // MOVIES DB
-        _state.transformLatest { state ->
+        _state.transformLatest { state: State ->
             when (state) {
                 is State.SuccessLoading -> {
                     val movies = state.categories
                         .flatMap { it.list }
                         .filterIsInstance<Movie>()
                     if (movies.isEmpty()) {
-                        emit(emptyList())
+                        emit(emptyList<Movie>())
                     } else {
                         emitAll(database.movieDao().getByIds(movies.map { it.id }))
                     }
@@ -171,14 +173,14 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
         }.flowOn(Dispatchers.IO),
 
         // TV SHOWS DB
-        _state.transformLatest { state ->
+        _state.transformLatest { state: State ->
             when (state) {
                 is State.SuccessLoading -> {
                     val tvShows = state.categories
                         .flatMap { it.list }
                         .filterIsInstance<TvShow>()
                     if (tvShows.isEmpty()) {
-                        emit(emptyList())
+                        emit(emptyList<TvShow>())
                     } else {
                         emitAll(database.tvShowDao().getByIds(tvShows.map { it.id }))
                     }
@@ -187,7 +189,7 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
             }
         }.flowOn(Dispatchers.IO),
 
-        ) { state, continueWatching, favoritesMovies, favoriteTvShows, moviesDb, tvShowsDb ->
+    ) { state: State, continueWatching: List<AppAdapter.Item>, favoritesMovies: List<Movie>, favoriteTvShows: List<TvShow>, moviesDb: List<Movie>, tvShowsDb: List<TvShow> ->
 
         when (state) {
             is State.SuccessLoading -> {
@@ -198,13 +200,13 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
                 fun mergeItem(item: AppAdapter.Item): AppAdapter.Item {
                     return when (item) {
                         is Movie -> moviesMap[item.id]
-                            ?.takeIf { !item.isSame(it) }
-                            ?.let { item.copy().merge(it) }
+                            ?.takeIf { movieFromDb -> !item.isSame(movieFromDb) }
+                            ?.let { movieFromDb -> item.copy().merge(movieFromDb) }
                             ?: item
 
                         is TvShow -> tvShowsMap[item.id]
-                            ?.takeIf { !item.isSame(it) }
-                            ?.let { item.copy().merge(it) }
+                            ?.takeIf { tvShowFromDb -> !item.isSame(tvShowFromDb) }
+                            ?.let { tvShowFromDb -> item.copy().merge(tvShowFromDb) }
                             ?: item
 
                         else -> item
@@ -274,13 +276,17 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
                             list = category.list.map(::mergeItem)
                         )
                     })
+                    .filter { it.list.isNotEmpty() }
 
                 State.SuccessLoading(categories)
             }
-
             else -> state
         }
-    }.flowOn(Dispatchers.IO)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = State.Loading
+    )
 
     sealed class State {
         data object Loading : State()
@@ -441,5 +447,60 @@ class HomeViewModel(database: AppDatabase) : ViewModel() {
                 _userDataCache.value = newData
             }
         }
+    }
+
+    fun toggleFavorite(item: Any) = viewModelScope.launch(Dispatchers.IO) {
+        val appContext = StreamFlixApp.instance.applicationContext
+        val db = AppDatabase.getInstance(appContext)
+        when (item) {
+            is Movie -> {
+                val newState = !item.isFavorite
+                db.movieDao().setFavoriteWithLog(item.id, newState)
+            }
+            is TvShow -> {
+                val newState = !item.isFavorite
+                db.tvShowDao().setFavoriteWithLog(item.id, newState)
+            }
+        }
+        val provider = currentProvider ?: return@launch
+        loadUserDataCache(provider)
+    }
+
+    fun markAsWatched(item: Any) = viewModelScope.launch(Dispatchers.IO) {
+        val appContext = StreamFlixApp.instance.applicationContext
+        val db = AppDatabase.getInstance(appContext)
+        when (item) {
+            is Movie -> db.movieDao().setWatched(item.id, true)
+            is TvShow -> {
+                // For TV Show, mark all episodes as watched
+                val episodes = db.episodeDao().getEpisodesByTvShowId(item.id)
+                episodes.forEach { it.isWatched = true }
+                db.episodeDao().insertAll(episodes)
+                db.tvShowDao().setWatching(item.id, false) // Consider finished
+            }
+            is Episode -> db.episodeDao().setWatched(item.id, true)
+        }
+        val provider = currentProvider ?: return@launch
+        loadUserDataCache(provider)
+    }
+
+    fun markAsWatchedUpTo(episode: Episode) = viewModelScope.launch(Dispatchers.IO) {
+        val appContext = StreamFlixApp.instance.applicationContext
+        val db = AppDatabase.getInstance(appContext)
+        db.episodeDao().markAsWatchedUpToHere(episode.id)
+        val provider = currentProvider ?: return@launch
+        loadUserDataCache(provider)
+    }
+
+    fun removeFromContinueWatching(item: Any) = viewModelScope.launch(Dispatchers.IO) {
+        val appContext = StreamFlixApp.instance.applicationContext
+        val db = AppDatabase.getInstance(appContext)
+        when (item) {
+            is Movie -> db.movieDao().removeFromContinueWatching(item.id)
+            is TvShow -> db.episodeDao().removeFromContinueWatchingByTvShow(item.id)
+            is Episode -> db.episodeDao().removeFromContinueWatching(item.id)
+        }
+        val provider = currentProvider ?: return@launch
+        loadUserDataCache(provider)
     }
 }

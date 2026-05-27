@@ -147,4 +147,42 @@ interface EpisodeDao {
     ORDER BY s.number, e.number
 """)
     fun getByTvShowIdAndSeasonNumber(tvShowId: String, seasonNumber: Int): List<Episode>
+
+    @Query("UPDATE episodes SET lastPlaybackPositionMillis = NULL, durationMillis = NULL, lastEngagementTimeUtcMillis = NULL WHERE tvShow = :tvShowId")
+    fun removeFromContinueWatchingByTvShow(tvShowId: String)
+
+    @Query("UPDATE episodes SET lastPlaybackPositionMillis = NULL, durationMillis = NULL, lastEngagementTimeUtcMillis = NULL WHERE id = :id")
+    fun removeFromContinueWatching(id: String)
+
+    @Query("UPDATE episodes SET isWatched = :isWatched WHERE id = :id")
+    fun setWatched(id: String, isWatched: Boolean)
+
+    @Transaction
+    fun markAsWatchedUpToHere(episodeId: String) {
+        val target = getById(episodeId) ?: return
+        val tvShowId = target.tvShow?.id ?: return
+        val targetSeasonId = target.season?.id ?: return
+        
+        // This is a simplified version. Ideally we should use season/episode numbers.
+        // For now, let's just mark the current episode and all episodes in the same show fetched so far?
+        // No, let's try to find them by IDs if we had them.
+        // Better: use a query.
+        markAsWatchedUpToHereQuery(tvShowId, episodeId)
+    }
+
+    @Query("""
+        UPDATE episodes 
+        SET isWatched = 1 
+        WHERE tvShow = :tvShowId AND id IN (
+            SELECT e.id FROM episodes e
+            LEFT JOIN seasons s ON e.season = s.id
+            JOIN (
+                SELECT e2.tvShow as tvShow, s2.number as seasonNumber, e2.number as number
+                FROM episodes e2
+                LEFT JOIN seasons s2 ON e2.season = s2.id
+                WHERE e2.id = :episodeId
+            ) target ON (e.tvShow = target.tvShow AND (s.number < target.seasonNumber OR (s.number = target.seasonNumber AND e.number <= target.number)))
+        )
+    """)
+    fun markAsWatchedUpToHereQuery(tvShowId: String, episodeId: String)
 }

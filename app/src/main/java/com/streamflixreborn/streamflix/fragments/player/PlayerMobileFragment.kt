@@ -403,7 +403,47 @@ class PlayerMobileFragment : Fragment() {
             }
         }
 
-        // Stato Sottotitoli
+        // Stato Torrent
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.torrentState.flowWithLifecycle(lifecycle, Lifecycle.State.CREATED).collect { state ->
+                when (state) {
+                    is PlayerViewModel.TorrentState.Idle -> {
+                        binding.pvPlayer.controller?.binding?.llTorrentInfo?.visibility = View.GONE
+                    }
+                    is PlayerViewModel.TorrentState.Connecting -> {
+                        Toast.makeText(requireContext(), "🧲 Connessione ai peer…", Toast.LENGTH_SHORT).show()
+                    }
+                    is PlayerViewModel.TorrentState.Streaming -> {
+                        // Show torrent info panel
+                        val ctrl = binding.pvPlayer.controller?.binding ?: return@collect
+                        ctrl.llTorrentInfo.visibility = View.VISIBLE
+
+                        val speedMB = state.speedBytesPerSec / 1024f / 1024f
+                        ctrl.tvTorrentSpeed.text = "↓ %.1f MB/s".format(speedMB)
+                        ctrl.tvTorrentPeers.text = "👥 ${state.peers} peers"
+                        ctrl.tvTorrentProgress.text = "⬛ ${"%.0f".format(state.progressPercent)}%"
+
+                        // Load into ExoPlayer if not already playing this URL
+                        val currentUri = player.currentMediaItem?.localConfiguration?.uri?.toString()
+                        if (currentUri != state.localUrl) {
+                            player.setMediaItem(
+                                MediaItem.Builder()
+                                    .setUri(state.localUrl)
+                                    .build()
+                            )
+                            player.prepare()
+                            player.play()
+                        }
+                    }
+                    is PlayerViewModel.TorrentState.Error -> {
+                        binding.pvPlayer.controller?.binding?.llTorrentInfo?.visibility = View.GONE
+                        Toast.makeText(requireContext(), "❌ Torrent: ${state.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
+
+
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.subtitleState.flowWithLifecycle(lifecycle, Lifecycle.State.CREATED).collect { state ->
                 when (state) {
@@ -743,6 +783,36 @@ class PlayerMobileFragment : Fragment() {
             binding.settings.hide()
             binding.pvPlayer.hideController()
             binding.pvPlayer.enterManualZoomMode()
+        }
+
+        // Magnet Link Dialog (Torrent)
+        binding.settings.onMagnetLinkClicked = {
+            val ctx = requireContext()
+            val inputLayout = com.google.android.material.textfield.TextInputLayout(ctx).apply {
+                hint = "magnet:?xt=urn:btih:…"
+                boxBackgroundMode = com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE
+                setPadding(48, 16, 48, 0)
+            }
+            val editText = com.google.android.material.textfield.TextInputEditText(ctx).apply {
+                inputType = android.text.InputType.TYPE_CLASS_TEXT
+                setSingleLine(true)
+            }
+            inputLayout.addView(editText)
+
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(ctx)
+                .setTitle("🧲 Torrent / Magnet Link")
+                .setMessage("Inserisci il magnet link da riprodurre in streaming.")
+                .setView(inputLayout)
+                .setPositiveButton("Avvia Stream") { _, _ ->
+                    val magnet = editText.text?.toString()?.trim() ?: return@setPositiveButton
+                    if (magnet.startsWith("magnet:")) {
+                        viewModel.startTorrentStream(ctx, magnet)
+                    } else {
+                        android.widget.Toast.makeText(ctx, "Link non valido", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+                .setNegativeButton("Annulla", null)
+                .show()
         }
     }
 

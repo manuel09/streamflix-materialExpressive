@@ -1,23 +1,25 @@
 package com.streamflixreborn.streamflix.fragments.player
 
+import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.streamflixreborn.streamflix.models.Video
-import com.streamflixreborn.streamflix.utils.CustomTabHelper
+import com.streamflixreborn.streamflix.torrent.TorrentManager
+import com.streamflixreborn.streamflix.torrent.TorrentSession
 import com.streamflixreborn.streamflix.utils.EpisodeManager
 import com.streamflixreborn.streamflix.utils.OpenSubtitles
 import com.streamflixreborn.streamflix.utils.UserPreferences
-import com.streamflixreborn.streamflix.utils.format
+import com.streamflixreborn.streamflix.utils.SubDL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import com.streamflixreborn.streamflix.utils.SubDL
 
 class PlayerViewModel(
     videoType: Video.Type,
@@ -25,7 +27,10 @@ class PlayerViewModel(
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<State>(State.LoadingServers)
-    val state: Flow<State> = _state
+    val state: StateFlow<State> = _state
+
+    private val _torrentState = MutableStateFlow<TorrentState>(TorrentState.Idle)
+    val torrentState: StateFlow<TorrentState> = _torrentState
 
     private val _subtitleState = MutableSharedFlow<SubtitleState>()
     val subtitleState: SharedFlow<SubtitleState> = _subtitleState
@@ -226,6 +231,49 @@ class PlayerViewModel(
             Log.e("PlayerViewModel", "Errore download SubDL: ", e)
             _subtitleState.emit(SubtitleState.FailedDownloadingSubDLSubtitle(e, subtitle))
         }
+    }
+
+    // ======================== TORRENT SUPPORT ========================
+
+    fun startTorrentStream(context: Context, magnetUri: String) = viewModelScope.launch(Dispatchers.IO) {
+        _torrentState.value = TorrentState.Connecting
+        val url = TorrentManager.start(context, magnetUri)
+        if (url == null) {
+            _torrentState.value = TorrentState.Error("Impossibile avviare il torrent stream")
+            return@launch
+        }
+        _torrentState.value = TorrentState.Streaming(url)
+        // Forward TorrentSession progress updates
+        TorrentManager.progress?.collect { p ->
+            _torrentState.value = TorrentState.Streaming(
+                localUrl = url,
+                peers = p.peers,
+                speedBytesPerSec = p.speedBytesPerSec,
+                progressPercent = p.progressPercent
+            )
+        }
+    }
+
+    fun stopTorrent() {
+        TorrentManager.stop()
+        _torrentState.value = TorrentState.Idle
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        TorrentManager.stop()
+    }
+
+    sealed class TorrentState {
+        data object Idle : TorrentState()
+        data object Connecting : TorrentState()
+        data class Streaming(
+            val localUrl: String,
+            val peers: Int = 0,
+            val speedBytesPerSec: Long = 0,
+            val progressPercent: Float = 0f
+        ) : TorrentState()
+        data class Error(val message: String) : TorrentState()
     }
 
     sealed class State {

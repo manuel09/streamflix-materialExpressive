@@ -105,4 +105,9 @@ interface MovieDao {
     @Query("UPDATE movies SET isFavorite = :favorite, favoritedAtMillis = :favoritedAtMillis WHERE id = :id")
     fun setFavorite(id: String, favorite: Boolean, favoritedAtMillis: Long?)
 
+    @Query("UPDATE movies SET lastPlaybackPositionMillis = NULL, durationMillis = NULL, lastEngagementTimeUtcMillis = NULL WHERE id = :id")
+    fun removeFromContinueWatching(id: String)
+
+    @Query("UPDATE movies SET isWatched = :isWatched WHERE id = :id")
+    fun setWatched(id: String, isWatched: Boolean)
 }

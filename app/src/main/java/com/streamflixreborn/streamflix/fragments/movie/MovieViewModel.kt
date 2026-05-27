@@ -12,17 +12,20 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class MovieViewModel(id: String, private val database: AppDatabase) : ViewModel() {
 
     private val _state = MutableStateFlow<State>(State.Loading)
     @OptIn(ExperimentalCoroutinesApi::class)
-    val state: Flow<State> = combine(
+    val state: StateFlow<State> = combine(
         _state,
         database.movieDao().getByIdAsFlow(id),
         _state.transformLatest { state ->
@@ -31,7 +34,7 @@ class MovieViewModel(id: String, private val database: AppDatabase) : ViewModel(
                     val movies = state.movie.recommendations
                         .filterIsInstance<Movie>()
                     if (movies.isEmpty()) {
-                        emit(emptyList())
+                        emit(emptyList<Movie>())
                     } else {
                         emitAll(database.movieDao().getByIds(movies.map { it.id }))
                     }
@@ -45,7 +48,7 @@ class MovieViewModel(id: String, private val database: AppDatabase) : ViewModel(
                     val tvShows = state.movie.recommendations
                         .filterIsInstance<TvShow>()
                     if (tvShows.isEmpty()) {
-                        emit(emptyList())
+                        emit(emptyList<TvShow>())
                     } else {
                         emitAll(database.tvShowDao().getByIds(tvShows.map { it.id }))
                     }
@@ -53,7 +56,7 @@ class MovieViewModel(id: String, private val database: AppDatabase) : ViewModel(
                 else -> emit(emptyList<TvShow>())
             }
         },
-    ) { state, movieDb, moviesDb, tvShowsDb ->
+    ) { state: State, movieDb: Movie?, moviesDb: List<Movie>, tvShowsDb: List<TvShow> ->
         when (state) {
             is State.SuccessLoading -> {
                 val moviesById = moviesDb.associateBy { it.id }
@@ -79,7 +82,12 @@ class MovieViewModel(id: String, private val database: AppDatabase) : ViewModel(
             }
             else -> state
         }
-    }.flowOn(Dispatchers.IO)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = State.Loading
+    )
+
 
     sealed class State {
         data object Loading : State()
@@ -109,5 +117,9 @@ class MovieViewModel(id: String, private val database: AppDatabase) : ViewModel(
             Log.e("MovieViewModel", "getMovie: ", e)
             _state.emit(State.FailedLoading(e))
         }
+    }
+
+    fun toggleFavorite(movie: Movie) = viewModelScope.launch(Dispatchers.IO) {
+        database.movieDao().setFavoriteWithLog(movie.id, !movie.isFavorite)
     }
 }

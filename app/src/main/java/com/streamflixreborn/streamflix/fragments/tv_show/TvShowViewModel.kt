@@ -231,39 +231,76 @@ class TvShowViewModel(
             database.seasonDao().insertAll(tvShow.seasons)
 
             _state.emit(State.SuccessLoading(tvShow))
+
+            // Pre-fetch all seasons in background to make switching seasons instant
+            tvShow.seasons.forEach { season ->
+                if (season.number != 0) { // Skip specials for pre-fetch to save bandwidth
+                    launch { 
+                        try {
+                           fetchAndStoreSeason(tvShow, season)
+                        } catch (e: Exception) {
+                            Log.e("TvShowViewModel", "Pre-fetch failed for season ${season.number}", e)
+                        }
+                    }
+                }
+            }
         } catch (e: Exception) {
             Log.e("TvShowViewModel", "getTvShow: ", e)
             _state.emit(State.FailedLoading(e))
         }
     }
 
-    private fun getSeason(tvShow: TvShow, season: Season) = viewModelScope.launch(Dispatchers.IO) {
-        _seasonState.emit(SeasonState.Loading)
+    private suspend fun fetchAndStoreSeason(tvShow: TvShow, season: Season): List<Episode> {
+        val episodes = UserPreferences.currentProvider!!.getEpisodesBySeason(season.id)
+        val ids = episodes.map { it.id }
+        val episodeMap = episodes.associateBy { it.id }
+
+        ids.chunked(400).forEach { chunk ->
+            database.episodeDao()
+                .getByIds(chunk)
+                .forEach { episodeDb ->
+                    episodeMap[episodeDb.id]?.merge(episodeDb)
+                }
+        }
+
+        episodes.forEach { episode ->
+            episode.tvShow = tvShow
+            episode.season = season
+        }
+
+        database.episodeDao().insertAll(episodes)
+        return episodes
+    }
+
+    fun getSeason(tvShow: TvShow, season: Season) = viewModelScope.launch(Dispatchers.IO) {
+        // If episodes already exist in DB (via pre-fetch or previous load), SuccessLoading will be emitted by the Flow in state
+        // But we still emit Loading to show progress if it's the first time and pre-fetch hasn't finished
+        if (season.episodes.isEmpty()) {
+            _seasonState.emit(SeasonState.Loading)
+        }
 
         try {
-            val episodes = UserPreferences.currentProvider!!.getEpisodesBySeason(season.id)
-            val ids = episodes.map { it.id }
-            val episodeMap = episodes.associateBy { it.id }
-
-            ids.chunked(400).forEach { chunk ->
-                database.episodeDao()
-                    .getByIds(chunk)
-                    .forEach { episodeDb ->
-                        episodeMap[episodeDb.id]?.merge(episodeDb)
-                    }
-            }
-
-            episodes.forEach { episode ->
-                episode.tvShow = tvShow
-                episode.season = season
-            }
-
-            database.episodeDao().insertAll(episodes)
-
+            val episodes = fetchAndStoreSeason(tvShow, season)
             _seasonState.emit(SeasonState.SuccessLoading(tvShow, season, episodes))
         } catch (e: Exception) {
             Log.e("TvShowViewModel", "getSeason: ", e)
             _seasonState.emit(SeasonState.FailedLoading(e))
         }
+    }
+
+    fun toggleFavorite(tvShow: TvShow) = viewModelScope.launch(Dispatchers.IO) {
+        database.tvShowDao().setFavoriteWithLog(tvShow.id, !tvShow.isFavorite)
+    }
+
+    fun markAsWatched(episode: Episode) = viewModelScope.launch(Dispatchers.IO) {
+        database.episodeDao().setWatched(episode.id, true)
+    }
+
+    fun markAsWatchedUpTo(episode: Episode) = viewModelScope.launch(Dispatchers.IO) {
+        database.episodeDao().markAsWatchedUpToHere(episode.id)
+    }
+
+    fun removeFromContinueWatching(episode: Episode) = viewModelScope.launch(Dispatchers.IO) {
+        database.episodeDao().removeFromContinueWatching(episode.id)
     }
 }

@@ -173,7 +173,7 @@ class MainTvActivity : FragmentActivity() {
 
     override fun onResume() {
         super.onResume()
-        viewModel.checkUpdate()
+        // viewModel.checkUpdate()
     }
 
     private fun applyThemeNavigationChrome() {

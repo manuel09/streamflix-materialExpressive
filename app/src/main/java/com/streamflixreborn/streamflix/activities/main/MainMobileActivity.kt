@@ -156,7 +156,7 @@ class MainMobileActivity : FragmentActivity() {
             }
         }
 
-        viewModel.checkUpdate()
+        // viewModel.checkUpdate()
 
         binding.bnvMain.setupWithNavController(navController)
         updateNavigationVisibility()

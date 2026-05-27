@@ -51,6 +51,7 @@ class PlayerSettingsMobileView @JvmOverloads constructor(
 
     override var onSubtitlesClicked: (() -> Unit)? = null
     var onManualZoomClicked: (() -> Unit)? = null
+    var onMagnetLinkClicked: (() -> Unit)? = null
 
     init {
         binding.btnSettingsClose.setOnClickListener {
@@ -215,6 +216,10 @@ class PlayerSettingsMobileView @JvmOverloads constructor(
                                 Settings.KeepScreenOn -> settingsView.displaySettings(Setting.KEEP_SCREEN_ON)
                                 Settings.ManualZoom -> {
                                     settingsView.onManualZoomClicked?.invoke()
+                                    settingsView.hide()
+                                }
+                                Settings.Torrent -> {
+                                    settingsView.onMagnetLinkClicked?.invoke()
                                     settingsView.hide()
                                 }
                             }
@@ -420,6 +425,7 @@ class PlayerSettingsMobileView @JvmOverloads constructor(
                         Settings.Gestures -> R.drawable.ic_player_settings_gestures
                         Settings.KeepScreenOn -> R.drawable.ic_brightness
                         Settings.ManualZoom -> R.drawable.exo_styled_controls_aspect_ratio
+                        Settings.Torrent -> R.drawable.ic_download
                     })
                 )
             }
@@ -437,6 +443,7 @@ class PlayerSettingsMobileView @JvmOverloads constructor(
                         Settings.Gestures -> context.getString(R.string.player_settings_gestures_title)
                         Settings.KeepScreenOn -> context.getString(R.string.player_settings_keep_screen_on_title)
                         Settings.ManualZoom -> context.getString(R.string.player_settings_manual_zoom_label)
+                        Settings.Torrent -> "Torrent / Magnet"
                     }
 
                     is Settings.Audio -> when (item) {

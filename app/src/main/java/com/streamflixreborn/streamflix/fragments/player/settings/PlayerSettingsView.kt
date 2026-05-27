@@ -396,6 +396,7 @@ abstract class PlayerSettingsView @JvmOverloads constructor(
                 Gestures,
                 KeepScreenOn,
                 ManualZoom,
+                Torrent,
             )
             val listTv = listOf(
                 Quality,
@@ -410,6 +411,7 @@ abstract class PlayerSettingsView @JvmOverloads constructor(
         }
 
         data object ManualZoom : Settings()
+        data object Torrent : Settings()
 
         sealed class Gestures : Item {
             companion object : Settings() {

@@ -47,7 +47,7 @@ class MovieTvFragment : Fragment() {
         initializeMovie()
 
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.state.flowWithLifecycle(lifecycle, Lifecycle.State.STARTED).collect { state ->
+            viewModel.state.flowWithLifecycle(viewLifecycleOwner.lifecycle, Lifecycle.State.STARTED).collect { state: MovieViewModel.State ->
                 when (state) {
                     MovieViewModel.State.Loading -> binding.isLoading.apply {
                         root.visibility = View.VISIBLE
