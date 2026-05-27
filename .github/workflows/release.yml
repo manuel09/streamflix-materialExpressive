@@ -33,9 +33,10 @@ jobs:
       - name: Make Gradle executable
         run: chmod +x ./gradlew
 
-      # Build & Sign Function
       - name: Build and Sign
-        run: ./gradlew assembleRelease
+        run: |
+          ./gradlew clean
+          ./gradlew assembleRelease
         
       - name: Sign APK
         id: sign_apk
@@ -63,6 +64,7 @@ jobs:
         run: |
           sed -i '/APP_LAYOUT/d' local.properties
           echo APP_LAYOUT=mobile >> local.properties
+          ./gradlew clean
           ./gradlew assembleRelease
           
       - name: Sign Mobile
@@ -88,6 +90,7 @@ jobs:
         run: |
           sed -i '/APP_LAYOUT/d' local.properties
           echo APP_LAYOUT=tv >> local.properties
+          ./gradlew clean
           ./gradlew assembleRelease
           
       - name: Sign TV
