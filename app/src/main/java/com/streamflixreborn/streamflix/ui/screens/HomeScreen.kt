@@ -108,20 +108,23 @@ fun HomeComposeScreen(
         }
 
         selectedMediaItem?.let { item ->
-            val appAdapterItem = item as? AppAdapter.Item ?: return@let
-            val sheetState = rememberModalBottomSheetState()
-            ModalBottomSheet(
-                onDismissRequest = { selectedMediaItem = null },
-                sheetState = sheetState,
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
-            ) {
-                ModernOptionsDialog(
-                    show = appAdapterItem,
-                    onDismiss = { selectedMediaItem = null },
-                    onFavoriteToggle = { viewModel.toggleFavorite(item) },
-                    onMarkAsWatched = { viewModel.markAsWatched(item) }
-                )
-            }
+            MediaOptionsBottomSheet(
+                item = item,
+                onDismiss = { selectedMediaItem = null },
+                onAction = { action ->
+                    selectedMediaItem = null
+                    when (action) {
+                        is Action.GoToDetail -> onItemClick(action.item)
+                        is Action.ToggleFavorite -> viewModel.toggleFavorite(action.item)
+                        is Action.MarkWatched -> viewModel.markAsWatched(action.item)
+                        is Action.MarkWatchedUpTo -> viewModel.markAsWatchedUpTo(action.episode)
+                        is Action.MarkWatchedUpToMovie -> viewModel.markAsWatched(action.movie)
+                        is Action.RemoveFromContinueWatching -> viewModel.removeFromContinueWatching(action.item)
+                        Action.Cancel -> {}
+                        else -> {}
+                    }
+                }
+            )
         }
     }
 }
