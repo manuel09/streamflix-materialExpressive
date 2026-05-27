@@ -11,11 +11,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
 import com.streamflixreborn.streamflix.fragments.home.HomeViewModel
 import com.streamflixreborn.streamflix.ui.components.CategorySection
 import com.streamflixreborn.streamflix.ui.theme.StreamflixTheme
 import com.streamflixreborn.streamflix.utils.UserPreferences
-import com.streamflixreborn.streamflix.ui.components.ModernOptionsDialog
+import com.streamflixreborn.streamflix.ui.ShowOptionsMobileDialog
 import com.streamflixreborn.streamflix.adapters.AppAdapter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -108,23 +109,9 @@ fun HomeComposeScreen(
         }
 
         selectedMediaItem?.let { item ->
-            MediaOptionsBottomSheet(
-                item = item,
-                onDismiss = { selectedMediaItem = null },
-                onAction = { action ->
-                    selectedMediaItem = null
-                    when (action) {
-                        is Action.GoToDetail -> onItemClick(action.item)
-                        is Action.ToggleFavorite -> viewModel.toggleFavorite(action.item)
-                        is Action.MarkWatched -> viewModel.markAsWatched(action.item)
-                        is Action.MarkWatchedUpTo -> viewModel.markAsWatchedUpTo(action.episode)
-                        is Action.MarkWatchedUpToMovie -> viewModel.markAsWatched(action.movie)
-                        is Action.RemoveFromContinueWatching -> viewModel.removeFromContinueWatching(action.item)
-                        Action.Cancel -> {}
-                        else -> {}
-                    }
-                }
-            )
+            val context = LocalContext.current
+            ShowOptionsMobileDialog(context, item as AppAdapter.Item).show()
+            selectedMediaItem = null
         }
     }
 }
