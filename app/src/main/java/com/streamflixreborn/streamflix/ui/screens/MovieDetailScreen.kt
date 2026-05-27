@@ -73,18 +73,24 @@ fun MovieDetailScreen(
                         )
                         
                         // Favorite Toggle
-                        IconButton(
-                            onClick = { viewModel.toggleFavorite(movie) },
+                        Box(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 .padding(top = 48.dp, end = 16.dp)
                                 .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f), CircleShape)
                         ) {
-                            Icon(
-                                imageVector = if (movie.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                                contentDescription = "Favorite",
-                                tint = if (movie.isFavorite) Color.Red else Color.White
-                            )
+                            IconButton(
+                                onClick = { 
+                                    android.util.Log.d("UI_DEBUG", "Click sul tasto preferiti rilevato")
+                                    viewModel.toggleFavorite(movie) 
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = if (movie.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                                    contentDescription = "Favorite",
+                                    tint = if (movie.isFavorite) Color.Red else Color.White
+                                )
+                            }
                         }
                     }
 

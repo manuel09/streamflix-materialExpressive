@@ -120,6 +120,7 @@ class MovieViewModel(id: String, private val database: AppDatabase) : ViewModel(
     }
 
     fun toggleFavorite(movie: Movie) = viewModelScope.launch(Dispatchers.IO) {
+        android.util.Log.d("VM_DEBUG", "toggleFavorite chiamato per: ${movie.id}")
         database.movieDao().setFavoriteWithLog(movie.id, !movie.isFavorite)
     }
 }
