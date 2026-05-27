@@ -61,7 +61,8 @@ jobs:
       # Ripetizione per Mobile e TV come da tuo workflow
       - name: Build Mobile
         run: |
-          echo APP_LAYOUT=mobile > local.properties
+          sed -i '/APP_LAYOUT/d' local.properties
+          echo APP_LAYOUT=mobile >> local.properties
           ./gradlew assembleRelease
           
       - name: Sign Mobile
@@ -85,7 +86,8 @@ jobs:
 
       - name: Build TV
         run: |
-          echo APP_LAYOUT=tv > local.properties
+          sed -i '/APP_LAYOUT/d' local.properties
+          echo APP_LAYOUT=tv >> local.properties
           ./gradlew assembleRelease
           
       - name: Sign TV
