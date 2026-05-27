@@ -15,23 +15,23 @@ import com.streamflixreborn.streamflix.utils.format
 @Dao
 interface TvShowDao {
 
-    @Query("SELECT * FROM tv_shows")
-    fun getAllForBackup(): List<TvShow>
+    @Query("SELECT * FROM tv_shows WHERE profileId = :profileId")
+    fun getAllForBackup(profileId: String = UserPreferences.activeProfileId): List<TvShow>
 
-    @Query("SELECT * FROM tv_shows WHERE id = :id")
-    fun getById(id: String): TvShow?
+    @Query("SELECT * FROM tv_shows WHERE id = :id AND profileId = :profileId")
+    fun getById(id: String, profileId: String = UserPreferences.activeProfileId): TvShow?
 
-    @Query("SELECT * FROM tv_shows WHERE id = :id")
-    fun getByIdAsFlow(id: String): Flow<TvShow?>
+    @Query("SELECT * FROM tv_shows WHERE id = :id AND profileId = :profileId")
+    fun getByIdAsFlow(id: String, profileId: String = UserPreferences.activeProfileId): Flow<TvShow?>
 
-    @Query("SELECT * FROM tv_shows WHERE id IN (:ids)")
-    fun getByIds(ids: List<String>): Flow<List<TvShow>>
+    @Query("SELECT * FROM tv_shows WHERE id IN (:ids) AND profileId = :profileId")
+    fun getByIds(ids: List<String>, profileId: String = UserPreferences.activeProfileId): Flow<List<TvShow>>
 
-    @Query("SELECT * FROM tv_shows WHERE isFavorite = 1 ORDER BY favoritedAtMillis DESC")
-    fun getFavorites(): Flow<List<TvShow>>
+    @Query("SELECT * FROM tv_shows WHERE isFavorite = 1 AND profileId = :profileId ORDER BY favoritedAtMillis DESC")
+    fun getFavorites(profileId: String = UserPreferences.activeProfileId): Flow<List<TvShow>>
 
-    @Query("SELECT * FROM tv_shows WHERE isFavorite = 1 OR poster IS NULL OR poster = '' OR banner IS NULL OR banner = ''")
-    suspend fun getArtworkRepairCandidates(): List<TvShow>
+    @Query("SELECT * FROM tv_shows WHERE (isFavorite = 1 OR poster IS NULL OR poster = '' OR banner IS NULL OR banner = '') AND profileId = :profileId")
+    suspend fun getArtworkRepairCandidates(profileId: String = UserPreferences.activeProfileId): List<TvShow>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insert(tvShow: TvShow)
@@ -42,45 +42,48 @@ interface TvShowDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertAll(tvShows: List<TvShow>)
 
-    @Query("SELECT * FROM tv_shows")
-    fun getAll(): Flow<List<TvShow>>
+    @Query("SELECT * FROM tv_shows WHERE profileId = :profileId")
+    fun getAll(profileId: String = UserPreferences.activeProfileId): Flow<List<TvShow>>
 
-    @Query("SELECT * FROM tv_shows WHERE poster IS NULL or poster = ''")
-    suspend fun getAllWithNullPoster(): List<TvShow>
+    @Query("SELECT * FROM tv_shows WHERE (poster IS NULL or poster = '') AND profileId = :profileId")
+    suspend fun getAllWithNullPoster(profileId: String = UserPreferences.activeProfileId): List<TvShow>
 
-    @Query("SELECT id FROM tv_shows")
-    suspend fun getAllIds(): List<String>
+    @Query("SELECT id FROM tv_shows WHERE profileId = :profileId")
+    suspend fun getAllIds(profileId: String = UserPreferences.activeProfileId): List<String>
 
-    @Query("SELECT * FROM tv_shows WHERE LOWER(title) LIKE '%' || :query || '%' LIMIT :limit OFFSET :offset")
-    suspend fun searchTvShows(query: String, limit: Int, offset: Int): List<TvShow>
+    @Query("SELECT * FROM tv_shows WHERE LOWER(title) LIKE '%' || :query || '%' AND profileId = :profileId LIMIT :limit OFFSET :offset")
+    suspend fun searchTvShows(query: String, limit: Int, offset: Int, profileId: String = UserPreferences.activeProfileId): List<TvShow>
 
-    @Query("DELETE FROM tv_shows")
-    fun deleteAll()
+    @Query("DELETE FROM tv_shows WHERE profileId = :profileId")
+    fun deleteAll(profileId: String = UserPreferences.activeProfileId)
 
     @Transaction
     fun save(tvShow: TvShow) {
         val provider = UserPreferences.currentProvider?.name ?: "Unknown"
-        val existing = getById(tvShow.id)
+        tvShow.profileId = UserPreferences.activeProfileId
+        val existing = getById(tvShow.id, tvShow.profileId)
         if (existing != null) {
             val merged = tvShow.merge(existing)
             update(merged)
-            Log.d("DatabaseVerify", "[$provider] REAL-TIME UPDATE TV Show: ${merged.title} (Fav: ${merged.isFavorite}, Watching: ${merged.isWatching})")
+            Log.d("DatabaseVerify", "[$provider] REAL-TIME UPDATE TV Show: ${merged.title} (Fav: ${merged.isFavorite}, Watching: ${merged.isWatching}, Profile: ${tvShow.profileId})")
         } else {
             insert(tvShow)
-            Log.d("DatabaseVerify", "[$provider] REAL-TIME INSERT TV Show: ${tvShow.title} (Fav: ${tvShow.isFavorite})")
+            Log.d("DatabaseVerify", "[$provider] REAL-TIME INSERT TV Show: ${tvShow.title} (Fav: ${tvShow.isFavorite}, Profile: ${tvShow.profileId})")
         }
     }
 
     @Transaction
     fun setFavoriteWithLog(id: String, favorite: Boolean) {
         val provider = UserPreferences.currentProvider?.name ?: "Unknown"
-        setFavorite(id, favorite, if (favorite) System.currentTimeMillis() else null)
-        Log.d("DatabaseVerify", "[$provider] REAL-TIME Favorite Toggled: ID $id -> $favorite")
+        val profileId = UserPreferences.activeProfileId
+        setFavorite(id, favorite, if (favorite) System.currentTimeMillis() else null, profileId)
+        Log.d("DatabaseVerify", "[$provider] REAL-TIME Favorite Toggled: ID $id -> $favorite (Profile: $profileId)")
     }
 
     @Transaction
     fun upsertFavorite(tvShow: TvShow, favorite: Boolean) {
-        val existing = getById(tvShow.id)
+        tvShow.profileId = UserPreferences.activeProfileId
+        val existing = getById(tvShow.id, tvShow.profileId)
         if (existing != null) {
             val updated = existing.copy(
                 title = tvShow.title.ifBlank { existing.title },
@@ -102,6 +105,7 @@ interface TvShowDao {
             )
             updated.favoritedAtMillis = if (favorite) System.currentTimeMillis() else null
             updated.isWatching = existing.isWatching
+            updated.profileId = tvShow.profileId
             update(updated)
         } else {
             tvShow.isFavorite = favorite
@@ -110,9 +114,9 @@ interface TvShowDao {
         }
     }
 
-    @Query("UPDATE tv_shows SET isFavorite = :favorite, favoritedAtMillis = :favoritedAtMillis WHERE id = :id")
-    fun setFavorite(id: String, favorite: Boolean, favoritedAtMillis: Long?)
+    @Query("UPDATE tv_shows SET isFavorite = :favorite, favoritedAtMillis = :favoritedAtMillis WHERE id = :id AND profileId = :profileId")
+    fun setFavorite(id: String, favorite: Boolean, favoritedAtMillis: Long?, profileId: String)
 
-    @Query("UPDATE tv_shows SET isWatching = :isWatching WHERE id = :id")
-    fun setWatching(id: String, isWatching: Boolean)
+    @Query("UPDATE tv_shows SET isWatching = :isWatching WHERE id = :id AND profileId = :profileId")
+    fun setWatching(id: String, isWatching: Boolean, profileId: String = UserPreferences.activeProfileId)
 }

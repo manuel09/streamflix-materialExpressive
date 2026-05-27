@@ -15,26 +15,26 @@ import com.streamflixreborn.streamflix.utils.format
 @Dao
 interface MovieDao {
 
-    @Query("SELECT * FROM movies")
-    fun getAll(): List<Movie>
+    @Query("SELECT * FROM movies WHERE profileId = :profileId")
+    fun getAll(profileId: String = UserPreferences.activeProfileId): List<Movie>
 
-    @Query("SELECT * FROM movies WHERE id = :id")
-    fun getById(id: String): Movie?
+    @Query("SELECT * FROM movies WHERE id = :id AND profileId = :profileId")
+    fun getById(id: String, profileId: String = UserPreferences.activeProfileId): Movie?
 
-    @Query("SELECT * FROM movies WHERE id = :id")
-    fun getByIdAsFlow(id: String): Flow<Movie?>
+    @Query("SELECT * FROM movies WHERE id = :id AND profileId = :profileId")
+    fun getByIdAsFlow(id: String, profileId: String = UserPreferences.activeProfileId): Flow<Movie?>
 
-    @Query("SELECT * FROM movies WHERE id IN (:ids)")
-    fun getByIds(ids: List<String>): Flow<List<Movie>>
+    @Query("SELECT * FROM movies WHERE id IN (:ids) AND profileId = :profileId")
+    fun getByIds(ids: List<String>, profileId: String = UserPreferences.activeProfileId): Flow<List<Movie>>
 
-    @Query("SELECT * FROM movies WHERE isFavorite = 1 ORDER BY favoritedAtMillis DESC")
-    fun getFavorites(): Flow<List<Movie>>
+    @Query("SELECT * FROM movies WHERE isFavorite = 1 AND profileId = :profileId ORDER BY favoritedAtMillis DESC")
+    fun getFavorites(profileId: String = UserPreferences.activeProfileId): Flow<List<Movie>>
 
-    @Query("SELECT * FROM movies WHERE isFavorite = 1 OR poster IS NULL OR poster = '' OR banner IS NULL OR banner = ''")
-    suspend fun getArtworkRepairCandidates(): List<Movie>
+    @Query("SELECT * FROM movies WHERE (isFavorite = 1 OR poster IS NULL OR poster = '' OR banner IS NULL OR banner = '') AND profileId = :profileId")
+    suspend fun getArtworkRepairCandidates(profileId: String = UserPreferences.activeProfileId): List<Movie>
 
-    @Query("SELECT * FROM movies WHERE lastEngagementTimeUtcMillis IS NOT NULL ORDER BY lastEngagementTimeUtcMillis DESC")
-    fun getWatchingMovies(): Flow<List<Movie>>
+    @Query("SELECT * FROM movies WHERE lastEngagementTimeUtcMillis IS NOT NULL AND profileId = :profileId ORDER BY lastEngagementTimeUtcMillis DESC")
+    fun getWatchingMovies(profileId: String = UserPreferences.activeProfileId): Flow<List<Movie>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insert(movie: Movie)
@@ -45,33 +45,36 @@ interface MovieDao {
     @Update
     fun update(movie: Movie)
 
-    @Query("DELETE FROM movies")
-    fun deleteAll()
+    @Query("DELETE FROM movies WHERE profileId = :profileId")
+    fun deleteAll(profileId: String = UserPreferences.activeProfileId)
 
     @Transaction
     fun save(movie: Movie) {
         val provider = UserPreferences.currentProvider?.name ?: "Unknown"
-        val existing = getById(movie.id)
+        movie.profileId = UserPreferences.activeProfileId
+        val existing = getById(movie.id, movie.profileId)
         if (existing != null) {
             val merged = movie.merge(existing)
             update(merged)
-            Log.d("DatabaseVerify", "[$provider] REAL-TIME UPDATE Movie: ${merged.title} (Fav: ${merged.isFavorite}, Watched: ${merged.isWatched})")
+            Log.d("DatabaseVerify", "[$provider] REAL-TIME UPDATE Movie: ${merged.title} (Fav: ${merged.isFavorite}, Watched: ${merged.isWatched}, Profile: ${movie.profileId})")
         } else {
             insert(movie)
-            Log.d("DatabaseVerify", "[$provider] REAL-TIME INSERT Movie: ${movie.title} (Fav: ${movie.isFavorite})")
+            Log.d("DatabaseVerify", "[$provider] REAL-TIME INSERT Movie: ${movie.title} (Fav: ${movie.isFavorite}, Profile: ${movie.profileId})")
         }
     }
 
     @Transaction
     fun setFavoriteWithLog(id: String, favorite: Boolean) {
         val provider = UserPreferences.currentProvider?.name ?: "Unknown"
-        setFavorite(id, favorite, if (favorite) System.currentTimeMillis() else null)
-        Log.d("DatabaseVerify", "[$provider] REAL-TIME Favorite Toggled: ID $id -> $favorite")
+        val profileId = UserPreferences.activeProfileId
+        setFavorite(id, favorite, if (favorite) System.currentTimeMillis() else null, profileId)
+        Log.d("DatabaseVerify", "[$provider] REAL-TIME Favorite Toggled: ID $id -> $favorite (Profile: $profileId)")
     }
 
     @Transaction
     fun upsertFavorite(movie: Movie, favorite: Boolean) {
-        val existing = getById(movie.id)
+        movie.profileId = UserPreferences.activeProfileId
+        val existing = getById(movie.id, movie.profileId)
         if (existing != null) {
             val updated = existing.copy(
                 title = movie.title.ifBlank { existing.title },
@@ -94,6 +97,7 @@ interface MovieDao {
             updated.isWatched = existing.isWatched
             updated.watchedDate = existing.watchedDate
             updated.watchHistory = existing.watchHistory
+            updated.profileId = movie.profileId
             update(updated)
         } else {
             movie.isFavorite = favorite
@@ -102,12 +106,12 @@ interface MovieDao {
         }
     }
 
-    @Query("UPDATE movies SET isFavorite = :favorite, favoritedAtMillis = :favoritedAtMillis WHERE id = :id")
-    fun setFavorite(id: String, favorite: Boolean, favoritedAtMillis: Long?)
+    @Query("UPDATE movies SET isFavorite = :favorite, favoritedAtMillis = :favoritedAtMillis WHERE id = :id AND profileId = :profileId")
+    fun setFavorite(id: String, favorite: Boolean, favoritedAtMillis: Long?, profileId: String)
 
-    @Query("UPDATE movies SET lastPlaybackPositionMillis = NULL, durationMillis = NULL, lastEngagementTimeUtcMillis = NULL WHERE id = :id")
-    fun removeFromContinueWatching(id: String)
+    @Query("UPDATE movies SET lastPlaybackPositionMillis = NULL, durationMillis = NULL, lastEngagementTimeUtcMillis = NULL WHERE id = :id AND profileId = :profileId")
+    fun removeFromContinueWatching(id: String, profileId: String = UserPreferences.activeProfileId)
 
-    @Query("UPDATE movies SET isWatched = :isWatched WHERE id = :id")
-    fun setWatched(id: String, isWatched: Boolean)
+    @Query("UPDATE movies SET isWatched = :isWatched WHERE id = :id AND profileId = :profileId")
+    fun setWatched(id: String, isWatched: Boolean, profileId: String = UserPreferences.activeProfileId)
 }

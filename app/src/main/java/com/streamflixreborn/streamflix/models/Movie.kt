@@ -38,6 +38,7 @@ class Movie(
     @Ignore
     val recommendations: List<Show> = listOf(),
     override var isFavorite: Boolean = false,
+    var profileId: String = "default"
 ) : Show, WatchItem, AppAdapter.Item {
 
     var released = released?.toCalendar()
@@ -56,6 +57,7 @@ class Movie(
         if (isWatched != movie.isWatched) return false
         if (watchedDate != movie.watchedDate) return false
         if (watchHistory != movie.watchHistory) return false
+        if (profileId != movie.profileId) return false
         return true
     }
 
@@ -65,6 +67,7 @@ class Movie(
         this.isWatched = movie.isWatched
         this.watchedDate = movie.watchedDate
         this.watchHistory = movie.watchHistory
+        this.profileId = movie.profileId
         return this
     }
 
@@ -90,6 +93,7 @@ class Movie(
         cast: List<People> = this.cast,
         recommendations: List<Show> = this.recommendations,
         isFavorite: Boolean = this.isFavorite,
+        profileId: String = this.profileId
     ) = Movie(
         id,
         title,
@@ -108,6 +112,7 @@ class Movie(
         cast,
         recommendations,
         isFavorite,
+        profileId
     )
 
     override fun equals(other: Any?): Boolean {
@@ -132,11 +137,11 @@ class Movie(
         if (recommendations != other.recommendations) return false
         if (isFavorite != other.isFavorite) return false
         if (released != other.released) return false
-        if (isFavorite != other.isFavorite) return false
         if (favoritedAtMillis != other.favoritedAtMillis) return false
         if (isWatched != other.isWatched) return false
         if (watchedDate != other.watchedDate) return false
         if (watchHistory != other.watchHistory) return false
+        if (profileId != other.profileId) return false
         if (!::itemType.isInitialized || !other::itemType.isInitialized) return false
         return itemType == other.itemType
     }
@@ -162,6 +167,7 @@ class Movie(
         result = 31 * result + isWatched.hashCode()
         result = 31 * result + (watchedDate?.hashCode() ?: 0)
         result = 31 * result + (watchHistory?.hashCode() ?: 0)
+        result = 31 * result + profileId.hashCode()
         result = 31 * result + (if (::itemType.isInitialized) itemType.hashCode() else 0)
         return result
     }
