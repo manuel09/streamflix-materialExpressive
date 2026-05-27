@@ -45,9 +45,9 @@ class MainViewModel : ViewModel() {
                 .filter { it.contentType == "application/vnd.android.package-archive" }
                 .find {
                     when (BuildConfig.APP_LAYOUT) {
-                        "mobile" -> it.name.endsWith("-mobile.apk")
-                        "tv" -> it.name.endsWith("-tv.apk")
-                        else -> !it.name.endsWith("-mobile.apk") && !it.name.endsWith("-tv.apk")
+                        "mobile" -> it.name.contains("-mobile.apk")
+                        "tv" -> it.name.contains("-tv.apk")
+                        else -> !it.name.contains("-mobile.apk") && !it.name.contains("-tv.apk")
                     }
                 }
                 ?: throw Exception("Can't find update APK")
