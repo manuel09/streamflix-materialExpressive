@@ -5,22 +5,18 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import com.streamflixreborn.streamflix.fragments.home.HomeViewModel
-import com.streamflixreborn.streamflix.ui.components.Action
 import com.streamflixreborn.streamflix.ui.components.CategorySection
-import com.streamflixreborn.streamflix.ui.components.MediaOptionsBottomSheet
 import com.streamflixreborn.streamflix.ui.theme.StreamflixTheme
 import com.streamflixreborn.streamflix.utils.UserPreferences
+import com.streamflixreborn.streamflix.ui.components.ModernOptionsDialog
+import com.streamflixreborn.streamflix.adapters.AppAdapter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,8 +27,6 @@ fun HomeComposeScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var selectedMediaItem by remember { mutableStateOf<Any?>(null) }
-
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     StreamflixTheme {
         Scaffold(
@@ -49,7 +43,7 @@ fun HomeComposeScreen(
                     is HomeViewModel.State.SuccessLoading -> {
                         LazyColumn(
                             contentPadding = PaddingValues(
-                                top = 12.dp, // Minimal top padding for status bar area (assuming system bars are handled or inset)
+                                top = 12.dp,
                                 bottom = 16.dp
                             )
                         ) {
@@ -60,7 +54,6 @@ fun HomeComposeScreen(
                                         .padding(horizontal = 16.dp, vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    // Provider Logo Style
                                     Surface(
                                         color = MaterialTheme.colorScheme.primaryContainer,
                                         shape = RoundedCornerShape(8.dp),
@@ -115,23 +108,20 @@ fun HomeComposeScreen(
         }
 
         selectedMediaItem?.let { item ->
-            MediaOptionsBottomSheet(
-                item = item,
-                onDismiss = { selectedMediaItem = null },
-                onAction = { action ->
-                    selectedMediaItem = null
-                    when (action) {
-                        is Action.GoToDetail -> onItemClick(action.item)
-                        is Action.ToggleFavorite -> viewModel.toggleFavorite(action.item)
-                        is Action.MarkWatched -> viewModel.markAsWatched(action.item)
-                        is Action.MarkWatchedUpTo -> viewModel.markAsWatchedUpTo(action.episode)
-                        is Action.MarkWatchedUpToMovie -> viewModel.markAsWatched(action.movie)
-                        is Action.RemoveFromContinueWatching -> viewModel.removeFromContinueWatching(action.item)
-                        Action.Cancel -> {}
-                        else -> {}
-                    }
-                }
-            )
+            val appAdapterItem = item as? AppAdapter.Item ?: return@let
+            val sheetState = rememberModalBottomSheetState()
+            ModalBottomSheet(
+                onDismissRequest = { selectedMediaItem = null },
+                sheetState = sheetState,
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.95f)
+            ) {
+                ModernOptionsDialog(
+                    show = appAdapterItem,
+                    onDismiss = { selectedMediaItem = null },
+                    onFavoriteToggle = { viewModel.toggleFavorite(item) },
+                    onMarkAsWatched = { viewModel.markAsWatched(item) }
+                )
+            }
         }
     }
 }
